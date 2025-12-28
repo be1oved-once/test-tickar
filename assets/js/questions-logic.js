@@ -70,6 +70,8 @@ let answered = false;
 
 let activeQuestions = [];
 let round1Snapshot = [];
+let quizActive = false;
+let penaltyRunning = false;
 
 // 🔥 expose globally
 window.round1Snapshot = round1Snapshot;
@@ -211,7 +213,7 @@ if (resultActions) resultActions.classList.add("hidden");
    START
 ========================= */
 startBtn.onclick = () => {
-  requestExamFullscreen();
+  quizActive = true;   
   resetReviewState();
   if (resultActions) resultActions.classList.add("hidden");
   // 🔒 Hide marks when starting a new quiz
@@ -248,6 +250,8 @@ if (marksValue) marksValue.textContent = "0";
    RESET
 ========================= */
 resetBtn.onclick = () => {
+  quizActive = false;          // 🔥 ADD THIS
+  penaltyRunning = false;
   // 🔥 Clear previous attempt data
 resetReviewState();
 round1Completed = false;
@@ -596,6 +600,10 @@ nextBtn.onclick = () => {
    FINISH ROUND
 ========================= */
 function finishRound() {
+  quizActive = false; // 🔥 DISABLE CHEAT CHECK
+penaltyRunning = false;
+
+console.log("🔴 Quiz finished → Penalty system OFF");
 if (!round1Completed) {
   round1Completed = true;
 

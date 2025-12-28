@@ -259,7 +259,6 @@ btn.onclick = () => {
    START
 ========================= */
 startBtn.onclick = () => {
-  requestExamFullscreen();
   resetMarksState();
   if (!currentSubject || !selectedAttempt) {
     alert("Select subject and attempt (RTP / MTP)");

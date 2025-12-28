@@ -292,7 +292,22 @@
     <input type="password" id="signupPassword2" placeholder="Re-enter Password" required>
     <i class="fa-solid fa-eye toggle-pass"></i>
   </div>
-
+<!-- OTP INLINE (hidden by default) ----->
+<div id="otpInlineBox" class="password-field hidden">
+  <input
+    type="text"
+    id="otpInput"
+    placeholder="Enter 4-digit OTP"
+    maxlength="4"
+    inputmode="numeric"
+    style="
+      text-align:center;
+      letter-spacing:6px;
+      font-size:13px;
+    "
+  />
+  <p class="auth-error" id="otpError"></p>
+</div>
   <p class="auth-error" id="signupError"></p>
 
   <button type="submit" class="primary-btn">Sign Up</button>

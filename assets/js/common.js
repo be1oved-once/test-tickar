@@ -239,38 +239,112 @@ if (loginForm) {
 });
 }
 /* ---------- SIGNUP ---------- */
+let pendingSignup = null;
+
 if (signupForm) {
   signupForm.addEventListener("submit", async e => {
     e.preventDefault();
-    // (keep your existing code inside)
 
+    const errorBox = signupError;
+    const otpBox   = document.getElementById("otpInlineBox");
+    const otpError = document.getElementById("otpError");
+    const btn      = document.getElementById("signupBtn");
 
-  const errorBox = document.getElementById("signupError");
+    const username = signupUsername.value.trim();
+    const email    = signupEmail.value.trim();
+    const pass1    = signupPassword.value;
+    const pass2    = signupPassword2.value;
 
-  const username = document.getElementById("signupUsername").value.trim();
-  const email = document.getElementById("signupEmail").value.trim();
-  const password = document.getElementById("signupPassword").value;
+    errorBox.textContent = "";
+    otpError.textContent = "";
 
-  try {
-    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    /* STEP 1 — SEND OTP */
+    if (!otpBox.classList.contains("active")) {
 
-    // Create Firestore user document
-    await setDoc(doc(db, "users", userCred.user.uid), {
-      username,
-      email,
-      createdAt: serverTimestamp(),
-      xp: 0,
-      bookmarks: [],
-      settings: {
-        theme: localStorage.getItem("quizta-theme") || "light"
+      if (pass1 !== pass2) {
+        errorBox.textContent = "Passwords do not match";
+        return;
       }
-    });
 
-    closeAuth();
-  } catch (err) {
-    errorBox.textContent = err.message.replace("Firebase:", "");
-  }
-}); }
+      if (!validatePassword(pass1)) {
+        errorBox.textContent = "Weak password";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Sending OTP...";
+
+      try {
+        const res = await fetch("/api/send-signup-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+
+        if (!res.ok) throw new Error();
+
+        pendingSignup = { username, email, password: pass1 };
+
+        otpBox.classList.remove("hidden");
+        otpBox.classList.add("active");
+
+        btn.textContent = "Verify OTP";
+        btn.disabled = false;
+
+      } catch {
+        errorBox.textContent = "Failed to send OTP";
+        btn.textContent = "Sign Up";
+        btn.disabled = false;
+      }
+
+      return;
+    }
+
+    /* STEP 2 — VERIFY OTP */
+    const otp = otpInput.value.trim();
+
+    if (otp.length !== 4) {
+      otpError.textContent = "Enter valid OTP";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Verifying...";
+
+    try {
+      const res = await fetch("/api/verify-signup-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp })
+      });
+
+      const data = await res.json();
+      if (!data.valid) throw new Error();
+
+      const userCred =
+        await createUserWithEmailAndPassword(auth, email, pass1);
+
+      await setDoc(doc(db, "users", userCred.user.uid), {
+        username,
+        email,
+        createdAt: serverTimestamp(),
+        xp: 0,
+        bookmarks: [],
+        settings: {
+          theme: localStorage.getItem("quizta-theme") || "light"
+        }
+      });
+
+      closeAuth();
+      pendingSignup = null;
+
+    } catch {
+      otpError.textContent = "Invalid or expired OTP";
+      btn.disabled = false;
+      btn.textContent = "Verify OTP";
+    }
+  });
+}
 
 document.addEventListener("click", e => {
   if (!e.target.classList.contains("toggle-pass")) return;
