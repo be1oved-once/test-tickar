@@ -252,24 +252,27 @@ if (signupForm) {
   const password = document.getElementById("signupPassword").value;
 
   try {
-    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+  const userCred = await createUserWithEmailAndPassword(auth, email, password);
 
-    // Create Firestore user document
-    await setDoc(doc(db, "users", userCred.user.uid), {
-      username,
-      email,
-      createdAt: serverTimestamp(),
-      xp: 0,
-      bookmarks: [],
-      settings: {
-        theme: localStorage.getItem("quizta-theme") || "light"
-      }
-    });
+  // 🔐 SEND EMAIL VERIFICATION (IMPORTANT)
+ const res = await fetch("/api/send-verification", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email,
+    displayName: username,
+  }),
+});
 
-    closeAuth();
-  } catch (err) {
-    errorBox.textContent = err.message.replace("Firebase:", "");
-  }
+if (!res.ok) {
+  throw new Error("Verification email failed");
+}
+await auth.signOut();
+closeAuth();
+
+} catch (err) {
+  errorBox.textContent = err.message.replace("Firebase:", "");
+}
 }); }
 
 async function ensureUserProfile(user) {
@@ -331,6 +334,16 @@ googleBtn.addEventListener("click", async () => {
 }
 
 onAuthStateChanged(auth, async user => {
+if (
+  user &&
+  !user.emailVerified &&
+  user.providerData[0]?.providerId === "password"
+) {
+  alert("Please verify your email first.");
+  await auth.signOut();
+  openAuth();
+  return;
+}
 
   const loginBtns = document.querySelectorAll(".auth-login");
   const signupBtns = document.querySelectorAll(".auth-signup");
@@ -343,6 +356,13 @@ onAuthStateChanged(auth, async user => {
     logoutBtns.forEach(btn => btn.style.display = "inline-flex");
 
     console.log("User logged in:", user.uid);
+if (user?.emailVerified) {
+  await setDoc(
+    doc(db, "users", user.uid),
+    { emailVerified: true },
+    { merge: true }
+  );
+}
 
     await ensureUserProfile(user);
     // ⏳ Load Firestore data separately
