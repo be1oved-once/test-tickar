@@ -29,17 +29,38 @@
 .about-page p {
   margin-bottom: 14px;
 }
+/* =========================
+   CUSTOM DIAMOND BULLETS
+   (Used in About / Disclaimer / Privacy / Terms)
+========================= */
 
-.about-page ul {
-  padding-left: 20px;
-  margin: 10px 0 18px;
+.about-page ul {           /* ❌ remove • bullets */
+  padding-left: 0;
+  margin: 14px 0 20px;
+  list-style: none;
 }
 
 .about-page li {
-  margin-bottom: 6px;
-  list-style: disc;
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 10px;
+  line-height: 1.55;
+  font-size: 15px;
 }
 
+/* 🔷 Filled rotated square */
+.about-page li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  margin-left: -6px;
+  top: 8px;
+  width: 9px;
+  height: 9px;
+  background: #4f46e5;          /* SAME healthy indigo */
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
 .about-page a {
   color: #4f46e5;
   text-decoration: none;

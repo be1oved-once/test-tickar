@@ -1,6 +1,6 @@
 
 
-const CACHE_NAME = "tic-kar-v3";
+const CACHE_NAME = "tic-kar-v1";
 
 /* =========================
    PRECACHE (SAFE)

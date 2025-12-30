@@ -335,29 +335,29 @@
     <div class="footer-links">
       <div class="footer-col">
         <h4>Platform</h4>
-        <a href="#">Home</a>
-        <a href="#">Practice</a>
-        <a href="#">Live Tests</a>
-        <a href="#">Bookmarks</a>
+        <a href="/index.html">Home</a>
+        <a href="/chapters.html">Practice</a>
+        <a href="/temp-test.html">Live Tests</a>
+        <a href="/bookmarks.html">Bookmarks</a>
       </div>
 
       <div class="footer-col">
         <h4>Support</h4>
         <a href="#">Help / FAQ</a>
-        <a href="#">Contact</a>
-        <a href="#">Feedback</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/contact.html">Feedback</a>
       </div>
 
       <div class="footer-col">
         <h4>Legal</h4>
-        <a href="#">Privacy Policy</a>
-        <a href="#">Terms & Conditions</a>
-        <a href="#">Disclaimer</a>
+        <a href="Legal/privacy-policy.html">Privacy Policy</a>
+        <a href="Legal/terms.html">Terms & Conditions</a>
+        <a href="Legal/disclaimer.html">Disclaimer</a>
       </div>
 
       <div class="footer-col">
         <h4>About</h4>
-        <a href="#">About Us</a>
+        <a href="/About-us.html">About Us</a>
         <a href="#">Our Mission</a>
       </div>
     </div>
