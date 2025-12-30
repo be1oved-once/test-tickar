@@ -3,7 +3,8 @@
   const layoutHTML = `
   <header class="top-header">
 <div class="logo"><a href="index.html">
-  <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span></a>
+  <span class="logo-main">TIC</span><span class="logo-dot">.</span>
+  <span class="logo-sub">Kar</span></a>
 </div>
     <nav class="top-nav">
       <a href="/index.html" class="desk-nav-item">Home</a>
@@ -162,7 +163,9 @@
   <!-- ===== Right Sidebar ===== -->
   <aside id="rightSidebar" class="right-sidebar">
 <div class="sidebar-header">
-  <span class="menu-main">TIC</span><span class="menu-dot">.</span><span class="menu-sub">Menu</span>
+  <span class="menu-main">TIC</span>
+  <span class="menu-dot">.</span>
+  <span class="menu-sub">Menu</span>
 
 </div>
     <hr class="sidebar-hr" />
@@ -291,22 +294,17 @@
     <input type="password" id="signupPassword2" placeholder="Re-enter Password" required>
     <i class="fa-solid fa-eye toggle-pass"></i>
   </div>
-<!-- OTP INLINE (hidden by default)
 <div id="otpInlineBox" class="password-field hidden">
   <input
     type="text"
     id="otpInput"
-    placeholder="Enter 4-digit OTP"
-    maxlength="4"
+    placeholder="Enter 6-digit OTP"
+    maxlength="6"
     inputmode="numeric"
-    style="
-      text-align:center;
-      letter-spacing:6px;
-      font-size:13px;
-    "
+    style="text-align:center;letter-spacing:6px;"
   />
   <p class="auth-error" id="otpError"></p>
-</div> ----->
+</div>
   <p class="auth-error" id="signupError"></p>
 
   <button type="submit" class="primary-btn">Sign Up</button>
@@ -319,58 +317,92 @@
 
   </div>
 </div>
-<!-- ===== FOOTER ===== -->
-<footer class="site-footer">
-  <div class="footer-inner">
 
-    <div class="footer-brand">
-      <div class="footer-logo">
-        <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span>
-      </div>
-      <p class="footer-tagline">
-        Built for focused practice, fair testing, and real improvement.
-      </p>
-    </div>
-
-    <div class="footer-links">
-      <div class="footer-col">
-        <h4>Platform</h4>
-        <a href="#">Home</a>
-        <a href="#">Practice</a>
-        <a href="#">Live Tests</a>
-        <a href="#">Bookmarks</a>
-      </div>
-
-      <div class="footer-col">
-        <h4>Support</h4>
-        <a href="#">Help / FAQ</a>
-        <a href="#">Contact</a>
-        <a href="#">Feedback</a>
-      </div>
-
-      <div class="footer-col">
-        <h4>Legal</h4>
-        <a href="#">Privacy Policy</a>
-        <a href="#">Terms & Conditions</a>
-        <a href="#">Disclaimer</a>
-      </div>
-
-      <div class="footer-col">
-        <h4>About</h4>
-        <a href="#">About Us</a>
-        <a href="#">Our Mission</a>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="footer-bottom">
-    © 2025 TIC.Kar · All rights reserved
-  </div>
-</footer>
   `;
 
   document.body.insertAdjacentHTML("beforeend", layoutHTML);
+  // ===== AUTH ELEMENTS =====
+  const signupForm = document.getElementById("signupForm");
+  const signupUsername = document.getElementById("signupUsername");
+  const signupEmail = document.getElementById("signupEmail");
+  const signupPassword = document.getElementById("signupPassword");
+  const signupPassword2 = document.getElementById("signupPassword2");
+  const signupError = document.getElementById("signupError");
+
+  const otpBox = document.getElementById("otpInlineBox");
+  const otpInput = document.getElementById("otpInput");
+  const otpError = document.getElementById("otpError");
+
+  let pendingSignupEmail = null;
+
+  // ===== SIGNUP SUBMIT =====
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    handleSignup();
+  });
+
+  // ===== OTP VERIFY =====
+  otpInput.addEventListener("input", async () => {
+    if (otpInput.value.length !== 6) return;
+
+    try {
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: pendingSignupEmail,
+          otp: otpInput.value,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw data;
+
+      alert("Signup successful 🎉");
+      document.getElementById("authModal").classList.remove("open");
+
+    } catch (err) {
+      otpError.textContent = err.error || "Invalid OTP";
+    }
+  });
+
+  // ===== SEND OTP =====
+  async function handleSignup() {
+    signupError.textContent = "";
+
+    const username = signupUsername.value.trim();
+    const email = signupEmail.value.trim();
+    const pass1 = signupPassword.value;
+    const pass2 = signupPassword2.value;
+
+    if (!username || !email || !pass1 || !pass2) {
+      signupError.textContent = "All fields required";
+      return;
+    }
+
+    if (pass1 !== pass2) {
+      signupError.textContent = "Passwords do not match";
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw data;
+
+      pendingSignupEmail = email;
+      otpBox.classList.remove("hidden");
+      signupError.textContent = "OTP sent to your email";
+
+    } catch (err) {
+      signupError.textContent = err.error || "OTP send failed";
+    }
+  }
 
 })();
 const adminToggle = document.getElementById("adminToggle");
@@ -420,34 +452,3 @@ function injectTempTestItem(show) {
     }
   });
 }
-/* =========================
-   OFFLINE BANNER (GLOBAL)
-========================= */
-(function () {
-  const banner = document.createElement("div");
-  banner.id = "offlineBanner";
-  banner.textContent = "You are offline. Some features may not work.";
-banner.style.cssText = `
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  background: #ff4d4d;
-  color: #fff;
-  text-align: center;
-  padding: 6px;
-  font-size: 7px;
-  z-index: 100000;
-  display: none;
-`;
-  document.body.appendChild(banner);
-
-  function update() {
-    banner.style.display = navigator.onLine ? "none" : "block";
-  }
-
-  window.addEventListener("online", update);
-  window.addEventListener("offline", update);
-
-  update(); // initial check
-})();

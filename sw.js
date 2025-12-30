@@ -1,6 +1,6 @@
 
 
-const CACHE_NAME = "tic-kar-v2";
+const CACHE_NAME = "tic-kar-v3";
 
 /* =========================
    PRECACHE (SAFE)
@@ -11,18 +11,18 @@ const PRECACHE = [
   "/offline.html",
 
   // main pages
-  "/about-us.html",
+  "/About-us.html",
   "/contact.html",
   "/bookmarks.html",
-  "/chatrooms.html",
-  "/confirmation.html",
-  "/correction-test.html",
-  "/mtp-rtp.html",
   "/performance.html",
+  "/mtp-rtp.html",
   "/profile.html",
   "/sponsor-us.html",
   "/temp-test.html",
   "/thoughts.html",
+  "/chatrooms.html",
+  "/confirmation.html",
+  "/correction-test.html",
 
   // css
     "/style.css",
@@ -54,6 +54,7 @@ const PRECACHE = [
 
   // icons
   "/assets/favicon/favicon.ico",
+  "/assets/QR/qr.png",
   "/assets/favicon/apple-touch-icon.png",
   "/assets/favicon/android-chrome-192x192.png",
   "/assets/favicon/android-chrome-512x512.png"

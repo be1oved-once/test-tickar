@@ -627,3 +627,56 @@ if ("serviceWorker" in navigator) {
       .catch(err => console.error("❌ SW failed", err));
   });
 }
+
+/* =========================
+   PWA INSTALL LOGIC
+========================= */
+let installPrompt = null;
+let installTimer = null;
+
+function initPWAInstall() {
+  const banner = document.getElementById("installBanner");
+  const installBtn = document.getElementById("installBtn");
+  const closeBtn = document.getElementById("installClose");
+
+  if (!banner || !installBtn || !closeBtn) {
+    console.warn("❌ PWA banner elements missing");
+    return;
+  }
+
+  window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    installPrompt = e;
+
+    installTimer = setTimeout(() => {
+      if (!localStorage.getItem("pwaDismissed")) {
+        banner.classList.remove("hidden");
+        banner.classList.add("pwa-attention");
+      }
+    }, 10000); // ⏱ 10 seconds
+  });
+
+  installBtn.addEventListener("click", async () => {
+    if (!installPrompt) return;
+
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+
+    installPrompt = null;
+    hide();
+  });
+
+  closeBtn.addEventListener("click", () => {
+    localStorage.setItem("pwaDismissed", "1");
+    hide();
+  });
+
+  function hide() {
+    banner.classList.add("hidden");
+    banner.classList.remove("pwa-attention");
+    if (installTimer) clearTimeout(installTimer);
+  }
+}
+
+/* ✅ SAFE AUTO INIT */
+document.addEventListener("DOMContentLoaded", initPWAInstall);
