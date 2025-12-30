@@ -16,13 +16,12 @@ const PRECACHE = [
   "/bookmarks.html",
   "/performance.html",
   "/mtp-rtp.html",
-  "/profile.html",
   "/sponsor-us.html",
-  "/temp-test.html",
-  "/thoughts.html",
-  "/chatrooms.html",
-  "/confirmation.html",
+  "/profile.html",
   "/correction-test.html",
+  "/Legal/disclaimer.html",
+  "/Legal/privacy-policy.html",
+  "/Legal/terms.html",
 
   // css
     "/style.css",
@@ -37,13 +36,12 @@ const PRECACHE = [
   "/assets/css/article.css",
   "/assets/css/about.css",
   "/assets/css/common-review.css",
+  "/Legal/legal.css",
 
   /* JS */
   "/assets/js/common.js",
   "/assets/js/common-layout.js",
   "/assets/js/common-logic.js",
-  "/assets/js/firebase.js",
-  "/assets/js/student-test.js",
   "/assets/js/rtp-mtp.js",
   "/assets/js/questions-logic.js",
   "/assets/js/questions-logic-rtp.js",
