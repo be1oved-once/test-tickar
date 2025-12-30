@@ -8,6 +8,8 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+import { generatePerformanceInsight } from "./insight-engine.js";
+
 // 🔒 Safe global init
 window.allAttempts = [];
 /* =========================
@@ -258,18 +260,19 @@ toDateInput.addEventListener("change", syncDateLimits);
   if (rtpCard) rtpCard.textContent = `${rtp} Attempts`;
   if (mtpCard) mtpCard.textContent = `${mtp} Attempts`;
   if (chapterCard) chapterCard.textContent = `${chapter} Chapters`;
-  const insightText = await fetchGeminiInsight({
-  trend: currentTrend, // Improving / Stable / Needs Focus
+  const insightText = generatePerformanceInsight({
+  trend: currentTrend,
   accuracy: accuracyPercent,
   subject: selectedSubject,
-  fromDate: from,
-  toDate: to,
   rtp,
   mtp,
   chapter
 });
 
-document.querySelector(".period-insight p").textContent = insightText;
+const insightEl = document.querySelector(".period-insight p");
+if (insightEl) {
+  insightEl.textContent = insightText;
+}
 });
 
 auth.onAuthStateChanged(async user => {
@@ -568,17 +571,6 @@ trendEls.forEach(el => {
 
 const selectedSubject =
   subjectValue?.dataset?.subject || "All Subjects";
-  
-async function fetchGeminiInsight(payload) {
-  const res = await fetch("/api/gemini-insight", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await res.json();
-  return data.insight;
-}
 /* =========================
    KEYBOARD SCROLL CONTROL
 ========================= */

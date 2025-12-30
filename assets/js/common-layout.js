@@ -3,9 +3,7 @@
   const layoutHTML = `
   <header class="top-header">
 <div class="logo"><a href="index.html">
-  <span class="logo-main">TIC</span>
-  <span class="logo-dot">.</span>
-  <span class="logo-sub">Kar</span></a>
+  <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span></a>
 </div>
     <nav class="top-nav">
       <a href="/index.html" class="desk-nav-item">Home</a>
@@ -50,7 +48,6 @@
 <div class="mobile-header-actions">
   <button class="icon-btn" id="notifyBtnMobile" title="Notifications">
     <i class="fa-regular fa-bell"></i>
-    <span class="notify-dot"></span>
   </button>
 
   <button id="menuBtn" class="menu-btn" aria-label="Menu">
@@ -144,6 +141,9 @@
   <li class="desktop-left"><a href="/About-us.html"><i class="fa-solid fa-circle-info"></i><span>About</span></a></li>
   <li class="desktop-left"><a href="javascript:void(0)" onclick="openSettings()"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
   <li class="desktop-left"><a href="/contact.html"><i class="fa-solid fa-comment"></i><span>Suggestions</span></a></li>
+  <li class="desktop-left"><a href="/sponsor-us.html"><i class="fa-solid fa-hand-holding-heart"></i>
+    <span>Sponsor Us</span></a>
+</li>
     <div class="thought-hint">
   <div class="thought-arrow"></div>
   <p>
@@ -162,9 +162,7 @@
   <!-- ===== Right Sidebar ===== -->
   <aside id="rightSidebar" class="right-sidebar">
 <div class="sidebar-header">
-  <span class="menu-main">TIC</span>
-  <span class="menu-dot">.</span>
-  <span class="menu-sub">Menu</span>
+  <span class="menu-main">TIC</span><span class="menu-dot">.</span><span class="menu-sub">Menu</span>
 
 </div>
     <hr class="sidebar-hr" />
@@ -175,6 +173,7 @@
   <li><a href="/About-us.html">About Us</a></li>
   <li><a href="javascript:void(0)" onclick="openSettings()">Settings</a></li>
   <li><a href="/contact.html">Suggestions / Contact</a></li>
+    <li><a href="/sponsor-us.html">Sponsor Us</a></li>
   <div class="thought-hint right-hint">
   <div class="thought-arrow right-arrow"></div>
   <p>
@@ -292,7 +291,7 @@
     <input type="password" id="signupPassword2" placeholder="Re-enter Password" required>
     <i class="fa-solid fa-eye toggle-pass"></i>
   </div>
-<!-- OTP INLINE (hidden by default) ----->
+<!-- OTP INLINE (hidden by default)
 <div id="otpInlineBox" class="password-field hidden">
   <input
     type="text"
@@ -307,7 +306,7 @@
     "
   />
   <p class="auth-error" id="otpError"></p>
-</div>
+</div> ----->
   <p class="auth-error" id="signupError"></p>
 
   <button type="submit" class="primary-btn">Sign Up</button>
@@ -320,10 +319,58 @@
 
   </div>
 </div>
+<!-- ===== FOOTER ===== -->
+<footer class="site-footer">
+  <div class="footer-inner">
 
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span>
+      </div>
+      <p class="footer-tagline">
+        Built for focused practice, fair testing, and real improvement.
+      </p>
+    </div>
+
+    <div class="footer-links">
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#">Home</a>
+        <a href="#">Practice</a>
+        <a href="#">Live Tests</a>
+        <a href="#">Bookmarks</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Support</h4>
+        <a href="#">Help / FAQ</a>
+        <a href="#">Contact</a>
+        <a href="#">Feedback</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms & Conditions</a>
+        <a href="#">Disclaimer</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>About</h4>
+        <a href="#">About Us</a>
+        <a href="#">Our Mission</a>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bottom">
+    © 2025 TIC.Kar · All rights reserved
+  </div>
+</footer>
   `;
 
-  document.body.insertAdjacentHTML("afterbegin", layoutHTML);
+  document.body.insertAdjacentHTML("beforeend", layoutHTML);
 
 })();
 const adminToggle = document.getElementById("adminToggle");
@@ -346,3 +393,61 @@ if (adminToggle && adminMenu) {
     adminMenu.classList.remove("open");
   });
 }
+function injectTempTestItem(show) {
+  // already injected?
+  const existing = document.querySelectorAll(".temp-test-item");
+
+  // REMOVE if not live
+  if (!show) {
+    existing.forEach(el => el.remove());
+    return;
+  }
+
+  // CREATE item
+  const liHTML = `
+    <li class="temp-test-item">
+      <a href="/temp-test.html">
+        <i class="fa-solid fa-bolt"></i>
+        <span>Temp Test</span>
+      </a>
+    </li>
+  `;
+
+  // 👉 mobile-left
+  document.querySelectorAll(".sidebar-list").forEach(list => {
+    if (!list.querySelector(".temp-test-item")) {
+      list.insertAdjacentHTML("afterbegin", liHTML);
+    }
+  });
+}
+/* =========================
+   OFFLINE BANNER (GLOBAL)
+========================= */
+(function () {
+  const banner = document.createElement("div");
+  banner.id = "offlineBanner";
+  banner.textContent = "You are offline. Some features may not work.";
+banner.style.cssText = `
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #ff4d4d;
+  color: #fff;
+  text-align: center;
+  padding: 6px;
+  font-size: 7px;
+  z-index: 100000;
+  display: none;
+`;
+  document.body.appendChild(banner);
+
+  function update() {
+    banner.style.display = navigator.onLine ? "none" : "block";
+  }
+
+  window.addEventListener("online", update);
+  window.addEventListener("offline", update);
+
+  update(); // initial check
+})();

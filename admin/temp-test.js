@@ -1,14 +1,15 @@
 import {
   doc,
+  collection,
+  collectionGroup,
+  query,
+  orderBy,
+  getDocs,
   setDoc,
   deleteDoc,
   onSnapshot,
   updateDoc,
-  serverTimestamp,
-  query,
-  collectionGroup,
-  where,
-  orderBy
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 import { db } from "/assets/js/firebase.js";
@@ -24,36 +25,6 @@ let scheduledTimeCache = null;
 
 const TEMP_TEST_REF = doc(db, "tempTests", "current");
 console.log("🟢 temp-test.js loaded");
-
-function listenLeaderboard() {
-  if (leaderboardUnsub) return;
-
-  const q = query(
-    collectionGroup(db, "testSubmissions"),
-    where("testId", "==", "tempTests/current"),
-    orderBy("marks", "desc"),
-    orderBy("submittedAt", "asc")
-  );
-
-  leaderboardUnsub = onSnapshot(q, snap => {
-    leaderboardList.replaceChildren();
-
-    if (snap.empty) {
-      const p = document.createElement("p");
-      p.textContent = "No submissions yet";
-      p.style.opacity = ".6";
-      p.style.padding = "12px";
-      leaderboardList.appendChild(p);
-      return;
-    }
-
-    let rank = 1;
-    snap.forEach(docSnap => {
-      renderStudentRow(docSnap.data(), rank++);
-    });
-  });
-}
-
 document.addEventListener("DOMContentLoaded", () => {
 
 /* =========================
@@ -65,25 +36,9 @@ document.addEventListener("DOMContentLoaded", () => {
 ========================= */
 console.log("🟢 Attaching onSnapshot to TEMP_TEST_REF");
 onSnapshot(TEMP_TEST_REF, (snap) => {
-
-if (!snap.exists()) return;
+  if (!snap.exists()) return;
 
   const data = snap.data();
-  console.log("Firestore data:", data);
-
-  // ✅ If test already finished (refresh safe)
-  if (data.status === "finished") {
-    console.log("📊 Test finished – leaderboard unlocked");
-    liveTimerBar.classList.remove("hidden");
-    showLeaderboardAccess();
-    return;
-  }
-
-  if (data.status === "finished") {
-  console.log("📊 Test already finished");
-  liveTimerBar.classList.remove("hidden");
-  showLeaderboardAccess(); // 👈 ADD HERE
-}
   console.log("Firestore data:", data);
 
   if (data.publishMode !== "schedule") return;
@@ -331,9 +286,33 @@ scheduleBtn.addEventListener("click", () => {
 /* =========================
    PUBLISH (DATA READY)
 ========================= */
+async function clearAllOldSubmissions() {
+  try {
+    console.log("🧹 Clearing old test submissions...");
+
+    const usersSnap = await getDocs(collection(db, "users"));
+
+    for (const userDoc of usersSnap.docs) {
+      const subsSnap = await getDocs(
+        collection(db, "users", userDoc.id, "testSubmissions")
+      );
+
+      for (const sub of subsSnap.docs) {
+        await deleteDoc(sub.ref);
+      }
+    }
+
+    console.log("✅ Old submissions cleared");
+
+  } catch (err) {
+    console.error("❌ Cleanup failed:", err);
+  }
+}
+
 const publishBtn = document.getElementById("publishBtn");
 
 publishBtn.addEventListener("click", async () => {
+  await clearAllOldSubmissions();
   if (!validateQuestions()) return;
   const payload = collectData();
   const mins = parseInt(timerInput.value);
@@ -398,7 +377,11 @@ if (isScheduled) {
     createdAt: serverTimestamp()
   };
 
-  await setDoc(TEMP_TEST_REF, firebasePayload, { merge: true });
+const testId = "temp_" + Date.now();
+
+firebasePayload.testId = testId;
+
+await setDoc(TEMP_TEST_REF, firebasePayload, { merge: true });
 
   // 🔥 IMPORTANT DIFFERENCE
   if (!isScheduled) {
@@ -620,19 +603,13 @@ function startTimer() {
     remainingSeconds--;
     updateTimerDisplay();
 
-if (remainingSeconds <= 0) {
+    if (remainingSeconds <= 0) {
   clearInterval(timerInterval);
   timerDisplay.textContent = "TIME UP";
 
-  // ✅ mark test as finished (DO NOT DELETE)
-  updateDoc(TEMP_TEST_REF, {
-    status: "finished",
-    finishedAt: serverTimestamp()
-  }).then(() => {
-    console.log("🏁 Test finished (leaderboard available)");
-    liveTimerBar.classList.remove("hidden");
-    showLeaderboardAccess(); 
-  }).catch(console.error);
+  deleteDoc(TEMP_TEST_REF)
+    .then(() => console.log("🔥 Test auto-cleared (TIME UP)"))
+    .catch(console.error);
 }
   }, 1000);
 }
@@ -717,132 +694,110 @@ confirmYes.onclick = () => {
   hideConfirmToast();
 };
 
-});
 
-document.addEventListener("DOMContentLoaded", () => {
-  const leaderboardOverlay = document.getElementById("leaderboardOverlay");
-  const leaderboardList = document.querySelector(".leaderboard-list");
-  const leaderboardBtn = document.getElementById("leaderboardBtn");
-  const closeLeaderboard = document.getElementById("closeLeaderboard");
+const leaderboardBtn = document.getElementById("leaderboardBtn");
 
-  let leaderboardUnsub = null;
-  let openBlock = null;
-
-  /* =========================
-     LISTEN LEADERBOARD
-  ========================= */
-  function listenLeaderboard() {
-    if (leaderboardUnsub) return;
-
-    const q = query(
-      collectionGroup(db, "testSubmissions"),
-      where("testId", "==", "tempTests/current"),
-      orderBy("marks", "desc"),
-      orderBy("submittedAt", "asc") // tie-break
-    );
-
-function showLeaderboardAccess() {
-  if (leaderboardBtn) {
+onSnapshot(TEMP_TEST_REF, snap => {
+  if (!snap.exists()) {
+    // 🏁 Test finished
     leaderboardBtn.classList.remove("hidden");
   }
-}
+});
 
-    leaderboardUnsub = onSnapshot(q, snap => {
-      leaderboardList.replaceChildren();
+const leaderboardOverlay = document.getElementById("leaderboardOverlay");
+const leaderboardList = document.getElementById("leaderboardList");
+const closeLeaderboard = document.getElementById("closeLeaderboard");
 
-      if (snap.empty) {
-        const p = document.createElement("p");
-        p.style.opacity = ".6";
-        p.style.padding = "12px";
-        p.textContent = "No submissions yet";
-        leaderboardList.appendChild(p);
-        return;
-      }
+leaderboardBtn.onclick = openLeaderboard;
+closeLeaderboard.onclick = () => {
+  leaderboardOverlay.classList.add("hidden");
+};
 
-      let rank = 1;
-      snap.forEach(docSnap => {
-        renderStudentRow(docSnap.data(), rank++);
-      });
-    });
+function renderLeaderboard(list) {
+  leaderboardList.innerHTML = "";
+
+  if (!list.length) {
+    leaderboardList.innerHTML =
+      "<div class='lb-empty'>No submissions yet</div>";
+    return;
   }
 
-  /* =========================
-     RENDER STUDENT ROW
-  ========================= */
-function renderStudentRow(data, rank) {
-  const row = document.createElement("div");
-  row.className = "leaderboard-user";
+  list.forEach((u, i) => {
+    const div = document.createElement("div");
+    div.className = "leaderboard-item";
 
-  row.innerHTML = `
-    <div class="leaderboard-user-head">
-      <div class="rank-badge">${rank}</div>
-      <div class="user-main">
-        <div class="user-name">${data.name || "Student"}</div>
-        <div class="user-marks">
-          ${data.marks} / ${data.total}
+    const name =
+      u.username ||
+      u.name ||
+      u.email?.split("@")[0] ||
+      "Student";
+
+    // 🔥 BUILD ANSWERS BLOCK SMARTLY
+    const answersHTML = (u.answers || [])
+      .map((a, idx) => {
+
+        // ✅ MCQ → show correct / wrong
+        if (a.type === "mcq") {
+          const status = a.isCorrect ? "✅ Correct" : "❌ Wrong";
+
+          return `
+            <div class="lb-answer">
+              <b>Q${idx + 1}:</b> ${a.question}<br>
+              ${status}<br>
+              Selected: Option ${a.selectedIndex + 1},
+              Correct: Option ${a.correctIndex + 1}
+            </div>
+          `;
+        }
+
+        // ✅ DIRECT → ONLY ANSWER TEXT (NO WRONG/RIGHT)
+        return `
+          <div class="lb-answer">
+            <b>Q${idx + 1}:</b> ${a.question}<br>
+            📝 <i>${a.answerText || "—"}</i>
+          </div>
+        `;
+      })
+      .join("");
+
+    div.innerHTML = `
+      <div class="lb-row">
+        <div class="lb-rank">
+          <span class="lb-pos">#${i + 1}</span>
+          <span class="lb-name">${name}</span>
         </div>
+        <div class="lb-score">${u.marks}</div>
       </div>
-    </div>
 
-    <div class="leaderboard-user-body hidden">
-      ${renderAnswers(data.answers || [])}
-      <div class="user-stats">
-        ✔ Correct: ${data.correct || 0}
-        &nbsp;&nbsp;✖ Wrong: ${data.wrong || 0}
-      </div>
-    </div>
-  `;
-
-  const body = row.querySelector(".leaderboard-user-body");
-
-  row.addEventListener("click", () => {
-    document
-      .querySelectorAll(".leaderboard-user-body")
-      .forEach(b => b !== body && b.classList.add("hidden"));
-
-    body.classList.toggle("hidden");
-  });
-
-  leaderboardList.appendChild(row);
-}
-
-  /* =========================
-     RENDER ANSWERS
-  ========================= */
-function renderAnswers(answers) {
-  return answers.map((a, i) => {
-    if (a.type === "mcq") {
-      return `
-        <div class="answer-row">
-          <strong>Q${i + 1}:</strong> ${a.question}<br/>
-          <span class="answer-selected">
-            Selected: ${a.selectedText || "—"}
-          </span>
-        </div>
-      `;
-    }
-
-    return `
-      <div class="answer-row">
-        <strong>Q${i + 1}:</strong> ${a.question}
-        <div class="direct-answer">
-          ${a.answerText || ""}
-        </div>
+      <div class="lb-expand">
+        <div class="lb-stat">📊 Attempts: <b>${u.total}</b></div>
+        <hr>
+        ${answersHTML}
       </div>
     `;
-  }).join("");
+
+    div.onclick = () => div.classList.toggle("active");
+    leaderboardList.appendChild(div);
+  });
 }
 
-  /* =========================
-     OPEN / CLOSE
-  ========================= */
-  leaderboardBtn?.addEventListener("click", () => {
-    leaderboardOverlay.classList.remove("hidden");
-    listenLeaderboard();
+async function openLeaderboard() {
+  leaderboardOverlay.classList.remove("hidden");
+  leaderboardList.innerHTML = "Loading...";
+
+  const q = query(
+    collectionGroup(db, "testSubmissions"),
+    orderBy("marks", "desc")
+  );
+
+  const snap = await getDocs(q);
+
+  const results = [];
+  snap.forEach(doc => {
+    results.push(doc.data());
   });
 
-  closeLeaderboard?.addEventListener("click", () => {
-    leaderboardOverlay.classList.add("hidden");
-  });
+  renderLeaderboard(results);
+}
 
 });

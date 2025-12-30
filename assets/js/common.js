@@ -239,111 +239,68 @@ if (loginForm) {
 });
 }
 /* ---------- SIGNUP ---------- */
-let pendingSignup = null;
-
 if (signupForm) {
   signupForm.addEventListener("submit", async e => {
     e.preventDefault();
+    // (keep your existing code inside)
 
-    const errorBox = signupError;
-    const otpBox   = document.getElementById("otpInlineBox");
-    const otpError = document.getElementById("otpError");
-    const btn      = document.getElementById("signupBtn");
 
-    const username = signupUsername.value.trim();
-    const email    = signupEmail.value.trim();
-    const pass1    = signupPassword.value;
-    const pass2    = signupPassword2.value;
+  const errorBox = document.getElementById("signupError");
 
-    errorBox.textContent = "";
-    otpError.textContent = "";
+  const username = document.getElementById("signupUsername").value.trim();
+  const email = document.getElementById("signupEmail").value.trim();
+  const password = document.getElementById("signupPassword").value;
 
-    /* STEP 1 — SEND OTP */
-    if (!otpBox.classList.contains("active")) {
+  try {
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
 
-      if (pass1 !== pass2) {
-        errorBox.textContent = "Passwords do not match";
-        return;
+    // Create Firestore user document
+    await setDoc(doc(db, "users", userCred.user.uid), {
+      username,
+      email,
+      createdAt: serverTimestamp(),
+      xp: 0,
+      bookmarks: [],
+      settings: {
+        theme: localStorage.getItem("quizta-theme") || "light"
       }
+    });
 
-      if (!validatePassword(pass1)) {
-        errorBox.textContent = "Weak password";
-        return;
-      }
+    closeAuth();
+  } catch (err) {
+    errorBox.textContent = err.message.replace("Firebase:", "");
+  }
+}); }
 
-      btn.disabled = true;
-      btn.textContent = "Sending OTP...";
+async function ensureUserProfile(user) {
+  if (!user) return;
 
-      try {
-        const res = await fetch("/api/send-signup-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email })
-        });
+  const userRef = doc(db, "users", user.uid);
+  const snap = await getDoc(userRef);
 
-        if (!res.ok) throw new Error();
+  const username =
+    user.displayName ||
+    user.email?.split("@")[0] ||
+    "Student";
 
-        pendingSignup = { username, email, password: pass1 };
-
-        otpBox.classList.remove("hidden");
-        otpBox.classList.add("active");
-
-        btn.textContent = "Verify OTP";
-        btn.disabled = false;
-
-      } catch {
-        errorBox.textContent = "Failed to send OTP";
-        btn.textContent = "Sign Up";
-        btn.disabled = false;
-      }
-
-      return;
-    }
-
-    /* STEP 2 — VERIFY OTP */
-    const otp = otpInput.value.trim();
-
-    if (otp.length !== 4) {
-      otpError.textContent = "Enter valid OTP";
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = "Verifying...";
-
-    try {
-      const res = await fetch("/api/verify-signup-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
-      });
-
-      const data = await res.json();
-      if (!data.valid) throw new Error();
-
-      const userCred =
-        await createUserWithEmailAndPassword(auth, email, pass1);
-
-      await setDoc(doc(db, "users", userCred.user.uid), {
+  if (!snap.exists()) {
+    await setDoc(
+      userRef,
+      {
+        uid: user.uid,
         username,
-        email,
+        email: user.email || "",
+        provider: user.providerData[0]?.providerId || "password",
         createdAt: serverTimestamp(),
         xp: 0,
         bookmarks: [],
         settings: {
           theme: localStorage.getItem("quizta-theme") || "light"
         }
-      });
-
-      closeAuth();
-      pendingSignup = null;
-
-    } catch {
-      otpError.textContent = "Invalid or expired OTP";
-      btn.disabled = false;
-      btn.textContent = "Verify OTP";
-    }
-  });
+      },
+      { merge: true }
+    );
+  }
 }
 
 document.addEventListener("click", e => {
@@ -363,41 +320,17 @@ document.addEventListener("click", e => {
 const googleBtn = document.querySelector(".google-btn");
 
 if (googleBtn) {
-  googleBtn.addEventListener("click", async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-
-      const userRef = doc(db, "users", user.uid);
-      const snap = await getDoc(userRef);
-
-      const name =
-        user.displayName ||
-        user.email?.split("@")[0] ||
-        "Student";
-
-      if (!snap.exists()) {
-        await setDoc(userRef, {
-          name,                     // 🔥 IMPORTANT
-          username: name,           // backward safe
-          email: user.email,
-          createdAt: serverTimestamp(),
-          xp: 0,
-          bookmarks: [],
-          settings: {
-            theme: localStorage.getItem("quizta-theme") || "light"
-          }
-        });
-      }
-
-      closeAuth();
-    } catch (err) {
-      alert(err.message);
-    }
-  });
+googleBtn.addEventListener("click", async () => {
+  try {
+    await signInWithPopup(auth, googleProvider);
+    closeAuth();
+  } catch (err) {
+    alert(err.message);
+  }
+});
 }
 
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
 
   const loginBtns = document.querySelectorAll(".auth-login");
   const signupBtns = document.querySelectorAll(".auth-signup");
@@ -411,6 +344,7 @@ onAuthStateChanged(auth, user => {
 
     console.log("User logged in:", user.uid);
 
+    await ensureUserProfile(user);
     // ⏳ Load Firestore data separately
     loadUserProfile(user.uid);
 
@@ -661,37 +595,35 @@ onAuthStateChanged(auth, user => {
   adminItems.forEach(el => {
     el.style.display = isAdmin ? "block" : "none";
   });
+  
+  
 });
-document.addEventListener("DOMContentLoaded", () => {
-  // current page (file name only)
-  const currentPage =
-    location.pathname.split("/").pop() || "index.html";
 
-  // collect ALL nav/sidebar links
-  const allLinks = document.querySelectorAll(`
-    .sidebar-list a,
-    .top-nav a,
-    .right-sidebar a
-  `);
+const TEMP_TEST_REF = doc(db, "tempTests", "current");
 
-  allLinks.forEach(link => {
-    const href = link.getAttribute("href");
-    if (!href || href.startsWith("javascript")) return;
+onSnapshot(TEMP_TEST_REF, snap => {
+  if (!snap.exists()) {
+    injectTempTestItem(false);
+    return;
+  }
+  
+  const data = snap.data();
+  
+  if (data.status === "live") {
+    injectTempTestItem(true);
+  } else {
+    injectTempTestItem(false);
+  }
+});
 
-    // normalize href
-    const linkPage = href.split("/").pop();
-
-    // exact match
-    if (linkPage === currentPage) {
-      link.classList.add("active-page");
-
-      // 🔥 highlight parent <li> also (mobile feel)
-      const li = link.closest("li");
-      if (li) li.classList.add("active-page");
-    } else {
-      link.classList.remove("active-page");
-      const li = link.closest("li");
-      if (li) li.classList.remove("active-page");
-    }
+/* =========================
+   PWA SERVICE WORKER
+========================= */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then(() => console.log("✅ Service Worker registered"))
+      .catch(err => console.error("❌ SW failed", err));
   });
-});
+}
