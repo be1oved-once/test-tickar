@@ -252,27 +252,24 @@ if (signupForm) {
   const password = document.getElementById("signupPassword").value;
 
   try {
-  const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
 
-  // 🔐 SEND EMAIL VERIFICATION (IMPORTANT)
- const res = await fetch("/api/send-verification", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    email,
-    displayName: username,
-  }),
-});
+    // Create Firestore user document
+    await setDoc(doc(db, "users", userCred.user.uid), {
+      username,
+      email,
+      createdAt: serverTimestamp(),
+      xp: 0,
+      bookmarks: [],
+      settings: {
+        theme: localStorage.getItem("quizta-theme") || "light"
+      }
+    });
 
-if (!res.ok) {
-  throw new Error("Verification email failed");
-}
-await auth.signOut();
-closeAuth();
-
-} catch (err) {
-  errorBox.textContent = err.message.replace("Firebase:", "");
-}
+    closeAuth();
+  } catch (err) {
+    errorBox.textContent = err.message.replace("Firebase:", "");
+  }
 }); }
 
 async function ensureUserProfile(user) {
@@ -334,16 +331,6 @@ googleBtn.addEventListener("click", async () => {
 }
 
 onAuthStateChanged(auth, async user => {
-if (
-  user &&
-  !user.emailVerified &&
-  user.providerData[0]?.providerId === "password"
-) {
-  alert("Please verify your email first.");
-  await auth.signOut();
-  openAuth();
-  return;
-}
 
   const loginBtns = document.querySelectorAll(".auth-login");
   const signupBtns = document.querySelectorAll(".auth-signup");
@@ -356,13 +343,6 @@ if (
     logoutBtns.forEach(btn => btn.style.display = "inline-flex");
 
     console.log("User logged in:", user.uid);
-if (user?.emailVerified) {
-  await setDoc(
-    doc(db, "users", user.uid),
-    { emailVerified: true },
-    { merge: true }
-  );
-}
 
     await ensureUserProfile(user);
     // ⏳ Load Firestore data separately
@@ -635,68 +615,3 @@ onSnapshot(TEMP_TEST_REF, snap => {
     injectTempTestItem(false);
   }
 });
-
-/* =========================
-   PWA SERVICE WORKER
-========================= */
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then(() => console.log("✅ Service Worker registered"))
-      .catch(err => console.error("❌ SW failed", err));
-  });
-}
-
-/* =========================
-   PWA INSTALL LOGIC
-========================= */
-let installPrompt = null;
-let installTimer = null;
-
-function initPWAInstall() {
-  const banner = document.getElementById("installBanner");
-  const installBtn = document.getElementById("installBtn");
-  const closeBtn = document.getElementById("installClose");
-
-  if (!banner || !installBtn || !closeBtn) {
-    console.warn("❌ PWA banner elements missing");
-    return;
-  }
-
-  window.addEventListener("beforeinstallprompt", e => {
-    e.preventDefault();
-    installPrompt = e;
-
-    installTimer = setTimeout(() => {
-      if (!localStorage.getItem("pwaDismissed")) {
-        banner.classList.remove("hidden");
-        banner.classList.add("pwa-attention");
-      }
-    }, 10000); // ⏱ 10 seconds
-  });
-
-  installBtn.addEventListener("click", async () => {
-    if (!installPrompt) return;
-
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-
-    installPrompt = null;
-    hide();
-  });
-
-  closeBtn.addEventListener("click", () => {
-    localStorage.setItem("pwaDismissed", "1");
-    hide();
-  });
-
-  function hide() {
-    banner.classList.add("hidden");
-    banner.classList.remove("pwa-attention");
-    if (installTimer) clearTimeout(installTimer);
-  }
-}
-
-/* ✅ SAFE AUTO INIT */
-document.addEventListener("DOMContentLoaded", initPWAInstall);

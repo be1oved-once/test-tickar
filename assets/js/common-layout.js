@@ -294,17 +294,22 @@
     <input type="password" id="signupPassword2" placeholder="Re-enter Password" required>
     <i class="fa-solid fa-eye toggle-pass"></i>
   </div>
+<!-- OTP INLINE (hidden by default)
 <div id="otpInlineBox" class="password-field hidden">
   <input
     type="text"
     id="otpInput"
-    placeholder="Enter 6-digit OTP"
-    maxlength="6"
+    placeholder="Enter 4-digit OTP"
+    maxlength="4"
     inputmode="numeric"
-    style="text-align:center;letter-spacing:6px;"
+    style="
+      text-align:center;
+      letter-spacing:6px;
+      font-size:13px;
+    "
   />
   <p class="auth-error" id="otpError"></p>
-</div>
+</div> ----->
   <p class="auth-error" id="signupError"></p>
 
   <button type="submit" class="primary-btn">Sign Up</button>
@@ -320,89 +325,7 @@
 
   `;
 
-  document.body.insertAdjacentHTML("beforeend", layoutHTML);
-  // ===== AUTH ELEMENTS =====
-  const signupForm = document.getElementById("signupForm");
-  const signupUsername = document.getElementById("signupUsername");
-  const signupEmail = document.getElementById("signupEmail");
-  const signupPassword = document.getElementById("signupPassword");
-  const signupPassword2 = document.getElementById("signupPassword2");
-  const signupError = document.getElementById("signupError");
-
-  const otpBox = document.getElementById("otpInlineBox");
-  const otpInput = document.getElementById("otpInput");
-  const otpError = document.getElementById("otpError");
-
-  let pendingSignupEmail = null;
-
-  // ===== SIGNUP SUBMIT =====
-  signupForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    handleSignup();
-  });
-
-  // ===== OTP VERIFY =====
-  otpInput.addEventListener("input", async () => {
-    if (otpInput.value.length !== 6) return;
-
-    try {
-      const res = await fetch("/api/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: pendingSignupEmail,
-          otp: otpInput.value,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw data;
-
-      alert("Signup successful 🎉");
-      document.getElementById("authModal").classList.remove("open");
-
-    } catch (err) {
-      otpError.textContent = err.error || "Invalid OTP";
-    }
-  });
-
-  // ===== SEND OTP =====
-  async function handleSignup() {
-    signupError.textContent = "";
-
-    const username = signupUsername.value.trim();
-    const email = signupEmail.value.trim();
-    const pass1 = signupPassword.value;
-    const pass2 = signupPassword2.value;
-
-    if (!username || !email || !pass1 || !pass2) {
-      signupError.textContent = "All fields required";
-      return;
-    }
-
-    if (pass1 !== pass2) {
-      signupError.textContent = "Passwords do not match";
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw data;
-
-      pendingSignupEmail = email;
-      otpBox.classList.remove("hidden");
-      signupError.textContent = "OTP sent to your email";
-
-    } catch (err) {
-      signupError.textContent = err.error || "OTP send failed";
-    }
-  }
+  document.body.insertAdjacentHTML("afterbegin", layoutHTML);
 
 })();
 const adminToggle = document.getElementById("adminToggle");
