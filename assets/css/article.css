@@ -1,0 +1,144 @@
+/* ===============================
+   ARTICLE LAYOUT (WITH LEFT SIDEBAR SPACE)
+================================ */
+
+/* adjust this if sidebar width changes */
+
+/* main wrapper */
+.article-container {
+  margin-top: 56px;
+  margin-left: 12vw;
+  box-sizing: border-box;
+}
+
+/* center content nicely */
+.article-content {
+  font-family: "Poppins", system-ui, sans-serif;
+  line-height: 1.7;
+  color: #1f2937;
+}
+
+/* ===============================
+   ARTICLE HERO / THUMBNAIL
+================================ */
+.article-hero {
+  margin-left: 6vw;
+  padding: 36px 32px;
+  border-radius: 18px;
+  background: linear-gradient(
+    135deg,
+    #6c63ff,
+    #5a52e0,
+    #4f46e5
+  );
+  color: #fff;
+  box-shadow: 0 18px 45px rgba(79, 70, 229, 0.35);
+}
+
+.article-hero h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.article-hero p {
+  font-size: 14px;
+  opacity: 0.9;
+  max-width: 560px;
+}
+
+/* ===============================
+   TYPOGRAPHY
+================================ */
+.article-content h2 {
+  margin-top: 36px;
+  margin-bottom: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.article-content h3 {
+  margin-top: 26px;
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.article-content p {
+  margin-left: 6vw;
+  font-size: 14px;
+}
+
+.article-content strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ===============================
+   LISTS
+================================ */
+.article-content ul,
+.article-content ol {
+  margin: 10px 0 10px 18px;
+  padding: 0;
+}
+
+.article-content li {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+/* ===============================
+   CALLOUT FEEL (SUBTLE)
+================================ */
+.article-content ul li::marker {
+  color: #6c63ff;
+}
+
+.article-content ol li::marker {
+  font-weight: 600;
+  color: #4f46e5;
+}
+
+/* ===============================
+   DARK MODE SUPPORT
+================================ */
+body.dark .article-content {
+  color: #e5e7eb;
+}
+
+body.dark .article-content h2,
+body.dark .article-content h3,
+body.dark .article-content strong {
+  color: #f9fafb;
+}
+
+body.dark .article-hero {
+  background: linear-gradient(
+    135deg,
+    #1e1b4b,
+    #312e81,
+    #4338ca
+  );
+  box-shadow: 0 18px 45px rgba(67, 56, 202, 0.45);
+}
+
+/* ===============================
+   RESPONSIVE (MOBILE)
+================================ */
+@media (max-width: 900px) {
+  .article-container {
+    margin-left: 0;
+    padding: 20px 16px 48px;
+  }
+
+  .article-hero {
+    padding: 28px 22px;
+  }
+
+  .article-hero h1 {
+    font-size: 22px;
+  }
+}

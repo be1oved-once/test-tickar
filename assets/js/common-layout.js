@@ -3,8 +3,7 @@
   const layoutHTML = `
   <header class="top-header">
 <div class="logo"><a href="index.html">
-  <span class="logo-main">TIC</span><span class="logo-dot">.</span>
-  <span class="logo-sub">Kar</span></a>
+  <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span></a>
 </div>
     <nav class="top-nav">
       <a href="/index.html" class="desk-nav-item">Home</a>
@@ -163,9 +162,7 @@
   <!-- ===== Right Sidebar ===== -->
   <aside id="rightSidebar" class="right-sidebar">
 <div class="sidebar-header">
-  <span class="menu-main">TIC</span>
-  <span class="menu-dot">.</span>
-  <span class="menu-sub">Menu</span>
+  <span class="menu-main">TIC</span><span class="menu-dot">.</span><span class="menu-sub">Menu</span>
 
 </div>
     <hr class="sidebar-hr" />
@@ -174,9 +171,9 @@
   <li><a href="/chapters.html">Chapters</a></li>
   <li><a href="/mtp-rtp.html">RTP / MTP</a></li>
   <li><a href="/About-us.html">About Us</a></li>
+  <li><a href="/sponsor-us.html">Sponsor Us</a></li>
   <li><a href="javascript:void(0)" onclick="openSettings()">Settings</a></li>
   <li><a href="/contact.html">Suggestions / Contact</a></li>
-    <li><a href="/sponsor-us.html">Sponsor Us</a></li>
   <div class="thought-hint right-hint">
   <div class="thought-arrow right-arrow"></div>
   <p>
@@ -322,12 +319,84 @@
 
   </div>
 </div>
+<!-- ===== FOOTER ===== -->
+<footer class="site-footer">
+  <div class="footer-inner">
 
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span>
+      </div>
+      <p class="footer-tagline">
+        Built for focused practice, fair testing, and real improvement.
+      </p>
+    </div>
+
+    <div class="footer-links">
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#">Home</a>
+        <a href="#">Practice</a>
+        <a href="#">Live Tests</a>
+        <a href="#">Bookmarks</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Support</h4>
+        <a href="#">Help / FAQ</a>
+        <a href="#">Contact</a>
+        <a href="#">Feedback</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms & Conditions</a>
+        <a href="#">Disclaimer</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>About</h4>
+        <a href="#">About Us</a>
+        <a href="#">Our Mission</a>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bottom">
+    © 2025 TIC.Kar · All rights reserved
+  </div>
+</footer>
   `;
 
-  document.body.insertAdjacentHTML("afterbegin", layoutHTML);
+  document.body.insertAdjacentHTML("beforeend", layoutHTML);
+})();
+/* =========================
+   PWA INSTALL BANNER HTML
+========================= */
+(function () {
+
+  const installHTML = `
+    <div id="installBanner" class="pwa-banner hidden">
+      <div class="pwa-content">
+        <div class="pwa-icon">⚡</div>
+
+        <div class="pwa-text">
+          <strong>Install TIC.Kar</strong>
+          <span>Faster access • Works offline</span>
+        </div>
+
+        <button id="installBtn" class="pwa-install-btn">Install</button>
+        <button id="installClose" class="pwa-close">✕</button>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML("beforeend", installHTML);
 
 })();
+
 const adminToggle = document.getElementById("adminToggle");
 const adminMenu = document.getElementById("adminMenu");
 
@@ -375,3 +444,34 @@ function injectTempTestItem(show) {
     }
   });
 }
+/* =========================
+   OFFLINE BANNER (GLOBAL)
+========================= */
+(function () {
+  const banner = document.createElement("div");
+  banner.id = "offlineBanner";
+  banner.textContent = "You are offline. Some features may not work.";
+banner.style.cssText = `
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #ff4d4d;
+  color: #fff;
+  text-align: center;
+  padding: 6px;
+  font-size: 7px;
+  z-index: 100000;
+  display: none;
+`;
+  document.body.appendChild(banner);
+
+  function update() {
+    banner.style.display = navigator.onLine ? "none" : "block";
+  }
+
+  window.addEventListener("online", update);
+  window.addEventListener("offline", update);
+
+  update(); // initial check
+})();
