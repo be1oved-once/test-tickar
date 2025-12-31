@@ -1720,10 +1720,11 @@ body:not(.dark) .penalty-time {
 /* ===== FOOTER ===== */
 .site-footer {
   margin-top: 60px;
-  margin-left: 6vw;   /* ✅ THIS WORKS */
+  margin-left: 2vw;   /* ✅ THIS WORKS */
   background: #ffffff;
   border-top: 1px solid #e5e7eb;
   color: #111827;
+  margin-right: 2vw;
 }
 
 .footer-inner {

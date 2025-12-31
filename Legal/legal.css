@@ -114,3 +114,31 @@ body.dark .about-page li {
     font-size: 19px;
   }
 }
+/* =========================
+   ARTICLE READING PROGRESS
+========================= */
+#readingProgress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  width: 0%;
+  z-index: 9999;
+  background: linear-gradient(
+    90deg,
+    #4f46e5,
+    #6366f1,
+    #818cf8
+  );
+  transition: width 0.12s linear;
+}
+
+/* Dark mode */
+body.dark #readingProgress {
+  background: linear-gradient(
+    90deg,
+    #a5b4fc,
+    #818cf8,
+    #6366f1
+  );
+}
