@@ -271,54 +271,54 @@ if (loginForm) {
 }
 /* ---------- SIGNUP ---------- */
 if (signupForm) {
-  signupForm.addEventListener("submit", async e => {
-    e.preventDefault();
+signupForm.addEventListener("submit", async e => {
+  e.preventDefault();
 
-    const errorBox = document.getElementById("signupError");
+  const errorBox = document.getElementById("signupError");
 
-    const username = document.getElementById("signupUsername").value.trim();
-    const email = document.getElementById("signupEmail").value.trim();
-    const password = document.getElementById("signupPassword").value;
+  const username = signupUsername.value.trim();
+  const email = signupEmail.value.trim();
+  const password = signupPassword.value;
 
-    // 🔐 GET TURNSTILE TOKEN
-    const token = document.querySelector(
-      "#signupForm input[name='cf-turnstile-response']"
-    )?.value;
+  if (!signupTurnstileToken) {
+    errorBox.textContent = "Please verify you are human";
+    return;
+  }
 
-    if (!token) {
-      errorBox.textContent = "Please verify you are human";
+  try {
+    const verify = await fetch("/api/verify-signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        token: signupTurnstileToken
+      })
+    });
+
+    const data = await verify.json();
+
+    if (!verify.ok) {
+      errorBox.textContent = data.error || "Signup failed";
       return;
     }
 
-    try {
-      // 🔥 VERIFY CAPTCHA FIRST (SERVER)
-      const verify = await fetch("/api/verify-signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-          token
-        })
-      });
+    // reset token so replay is impossible
+    signupTurnstileToken = null;
 
-      const data = await verify.json();
+    closeAuth();
 
-      if (!verify.ok) {
-        errorBox.textContent = data.error || "Signup failed";
-        return;
-      }
-
-      // ✅ SUCCESS → CLOSE MODAL
-      closeAuth();
-
-    } catch (err) {
-      errorBox.textContent = "Signup failed. Try again.";
-    }
-  });
+  } catch (err) {
+    errorBox.textContent = "Signup failed. Try again.";
+  }
+});
 }
+let signupTurnstileToken = null;
 
+window.onSignupTurnstile = function (token) {
+  signupTurnstileToken = token;
+};
 async function ensureUserProfile(user) {
   if (!user) return;
 

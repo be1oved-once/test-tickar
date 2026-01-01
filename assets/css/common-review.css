@@ -1,6 +1,22 @@
 /* ===============================
    RESULT ACTION BUTTONS
 =============================== */
+:root {
+  --accent: #4f46e5;
+  --violet: #6c63ff;
+  --violet-soft: rgba(108, 99, 255, 0.15);
+  --border-light: #e6e6ee;
+  --bg-light: #ffffff;
+  --text-light: #1c1c1c;
+}
+
+body.dark {
+  --accent: #818cf8;
+  --bg-light: #0f172a;
+  --text-light: #e5e7eb;
+  --border-light: rgba(255,255,255,0.08);
+  --violet-soft: rgba(108, 99, 255, 0.25);
+}
 html {
   scroll-behavior: smooth;
 }

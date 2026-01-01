@@ -169,7 +169,8 @@ reviewContent.innerHTML = "";
   activeQuestions = currentChapter.questions.map(q => ({
     ...q,
     userAnswer: "",
-    locked: false
+    locked: false,
+    xpApplied: false   //
   }));
 
   qIndex = 0;
@@ -462,6 +463,18 @@ const evalResult = evaluateLawAnswer({
 });
 
 q.eval = evalResult; // save per-question result
+if (currentUser && evalResult.xp > 0 && !q.xpApplied) {
+  q.xpApplied = true;
+
+  // 🔥 Immediate XP update
+  updateDoc(doc(db, "users", currentUser.uid), {
+    xp: increment(evalResult.xp)
+  });
+
+  // 🔥 Activity / streak / daily XP
+  recordQuestionAttempt(evalResult.xp);
+  updateBestXpIfNeeded();
+}
 
 console.log("📊 Law Eval:", evalResult);
 
@@ -661,17 +674,6 @@ marksBox.classList.remove("hidden");
 
 console.log("🏁 FINAL MARKS:", totalMarks);
 console.log("⚡ FINAL XP:", totalXp);
-
-if (currentUser && totalXp > 0 && !xpApplied) {
-  xpApplied = true;
-
-  updateDoc(doc(db, "users", currentUser.uid), {
-    xp: increment(totalXp)
-  });
-
-  recordQuestionAttempt(totalXp);
-  updateBestXpIfNeeded();
-}
 
   const actions = document.querySelector(".result-actions");
   if (actions) actions.classList.remove("hidden");

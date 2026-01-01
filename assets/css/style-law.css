@@ -681,7 +681,7 @@ body.dark .option-textarea:not(.readonly):focus {
   padding: 10px;
   border-radius: 12px;
   background: rgba(0,0,0,0.03);
-  border: 1.5px dashed #ccc;
+  border: 1px dashed #ccc;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -691,7 +691,7 @@ body.dark .option-textarea:not(.readonly):focus {
 .law-keyword {
   padding: 4px 8px;
   border-radius: 8px;
-  border: 1.5px solid red;
+  border: 1px solid red;
   background: rgba(255,0,0,0.12);
 }
 

@@ -7,11 +7,7 @@
   padding: 0;
   box-sizing: border-box;
   font-family: 'Poppins', system-ui, sans-serif;
-  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-}
-html, body {
-  overscroll-behavior: none;
 }
 
 a, button {
@@ -1362,7 +1358,7 @@ body.dark .notify-dot {
   right: 56px;
   width: 280px;
 
-  background: var(--bg-light);
+  background: #CCD2E1;
   border: 1px solid var(--border-light);
   border-radius: 14px;
 
@@ -1720,17 +1716,16 @@ body:not(.dark) .penalty-time {
 /* ===== FOOTER ===== */
 .site-footer {
   margin-top: 60px;
-  margin-left: 2vw;   /* ✅ THIS WORKS */
+  margin-left: 6vw;   /* ✅ THIS WORKS */
   background: #ffffff;
   border-top: 1px solid #e5e7eb;
   color: #111827;
-  margin-right: 2vw;
 }
 
 .footer-inner {
   max-width: 1200px;
   padding: 20px 10px;
-  padding-left: 6vw;
+  padding-left: 0;
 
   display: grid;
   grid-template-columns: 1.2fr 2fr;

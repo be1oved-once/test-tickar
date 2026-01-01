@@ -315,10 +315,12 @@ function enableVoiceNote() {
 }
 
 /* ⏱ Load duration automatically */
+/* ⏱ Load total duration */
 vnAudio?.addEventListener("loadedmetadata", () => {
-  const d = vnAudio.duration;
+  const d = Math.floor(vnAudio.duration);
   const m = Math.floor(d / 60);
-  const s = Math.floor(d % 60);
+  const s = d % 60;
+
   vnTime.textContent =
     String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
 });
@@ -334,7 +336,17 @@ vnPlay?.addEventListener("click", () => {
   }
 });
 
-/* ⏹ Reset icon when finished */
+/* ⏱ Running time update */
+vnAudio?.addEventListener("timeupdate", () => {
+  const t = Math.floor(vnAudio.currentTime);
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+
+  vnTime.textContent =
+    String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+});
+
+/* ⏹ Reset when finished */
 vnAudio?.addEventListener("ended", () => {
   vnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
 });

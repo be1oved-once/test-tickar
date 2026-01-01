@@ -1,65 +1,25 @@
 
 
-const CACHE_NAME = "tic-kar-v1";
+const CACHE_NAME = "tic-kar-v6";
 
 /* =========================
    PRECACHE (SAFE)
 ========================= */
 const PRECACHE = [
-  "/",
-  "/index.html",
-  "/offline.html",
+"/",
+"/index.html",
+"/offline.html",
 
-  // main pages
-  "/About-us.html",
-  "/contact.html",
-  "/bookmarks.html",
-  "/performance.html",
-  "/mtp-rtp.html",
-  "/business-laws.html",
-  "/sponsor-us.html",
-  "/profile.html",
-  "/correction-test.html",
-  "/Legal/disclaimer.html",
-  "/Legal/privacy-policy.html",
-  "/Legal/terms.html",
+// static pages (optional)
+"/about-us.html",
+"/contact.html",
 
-  // css
-    "/style.css",
-  "/style-rtp.css",
-  "/assets/css/common.css",
-  "/assets/css/landing.css",
-  "/assets/css/profile.css",
-  "/assets/css/style-law.css",
-  "/assets/css/perform.css",
-  "/assets/css/contact.css",
-  "/assets/css/sponsor.css",
-  "/assets/css/chatroom.css",
-  "/assets/css/article.css",
-  "/assets/css/about.css",
-  "/assets/css/common-review.css",
-  "/Legal/legal.css",
-
-  /* JS */
-  "/assets/js/common.js",
-  "/assets/js/common-layout.js",
-  "/assets/js/common-logic.js",
-  "/assets/js/rtp-mtp.js",
-  "/assets/js/questions-logic.js",
-  "/assets/js/questions-logic-rtp.js",
-  "/assets/js/law-pdf-logic.js",
-  "/assets/js/questions-law.js",
-  "/assets/js/questions.js",
-  "/assets/js/rtp-mtp.js",
-  "/assets/js/insight-engine.js",
-  "/assets/js/performance-logic.js",
-
-  // icons
-  "/assets/favicon/favicon.ico",
-  "/assets/QR/qr.png",
-  "/assets/favicon/apple-touch-icon.png",
-  "/assets/favicon/android-chrome-192x192.png",
-  "/assets/favicon/android-chrome-512x512.png"
+// icons / images only
+"/assets/favicon/favicon.ico",
+"/assets/favicon/apple-touch-icon.png",
+"/assets/favicon/android-chrome-192x192.png",
+"/assets/favicon/android-chrome-512x512.png",
+"/assets/QR/qr.png"
 ];
 
 /* =========================
@@ -124,6 +84,12 @@ self.addEventListener("fetch", event => {
 
   // assets → cache first
   event.respondWith(
-    caches.match(req).then(cached => cached || fetch(req))
-  );
+  caches.match(req).then(cached => {
+    const fetchPromise = fetch(req).then(res => {
+      caches.open(CACHE_NAME).then(c => c.put(req, res.clone()));
+      return res;
+    });
+    return cached || fetchPromise;
+  })
+);
 });
