@@ -137,6 +137,7 @@
     <span>Chapters</span></a>
 </li>
     <li class="desktop-left"><a href="/mtp-rtp.html"><i class="fa-solid fa-file-lines"></i><span>RTP / MTP</span></a></li>
+    <li class="desktop-left"><a href="/business-laws.html"><i class="fa-solid fa-file-lines"></i><span>Business Laws</span></a></li>
   <li class="desktop-left"><a href="/articles.html"><i class="fa-solid fa-newspaper"></i><span>Articles</span></a></li>
   <li class="desktop-left"><a href="/About-us.html"><i class="fa-solid fa-circle-info"></i><span>About</span></a></li>
   <li class="desktop-left"><a href="javascript:void(0)" onclick="openSettings()"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
@@ -170,6 +171,7 @@
   <li><a href="/index.html">Home</a></li>
   <li><a href="/chapters.html">Chapters</a></li>
   <li><a href="/mtp-rtp.html">RTP / MTP</a></li>
+  <li><a href="/business-laws.html">Business Laws</a></li>
   <li><a href="/About-us.html">About Us</a></li>
   <li><a href="/sponsor-us.html">Sponsor Us</a></li>
   <li><a href="javascript:void(0)" onclick="openSettings()">Settings</a></li>
@@ -307,6 +309,11 @@
   />
   <p class="auth-error" id="otpError"></p>
 </div> ----->
+      <div
+        class="cf-turnstile"
+        data-sitekey="0x4AAAAAACJINcs7IR4NRhGI"
+        data-theme="auto">
+      </div>
   <p class="auth-error" id="signupError"></p>
 
   <button type="submit" class="primary-btn">Sign Up</button>

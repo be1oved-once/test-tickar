@@ -17,7 +17,38 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 import { auth, db, googleProvider } from "./firebase.js";
+import {
+  signInWithCredential,
+  GoogleAuthProvider
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
+function initGoogleOneTap() {
+  if (!window.google || !auth) return;
+
+  google.accounts.id.initialize({
+    client_id:
+      "54581941326-9bsoei7p9gem6bff3pjsl5tju1ckst8l.apps.googleusercontent.com",
+    callback: async response => {
+      try {
+        const credential = GoogleAuthProvider.credential(
+          response.credential
+        );
+        await signInWithCredential(auth, credential);
+        console.log("✅ One Tap login success");
+      } catch (e) {
+        console.error("❌ One Tap failed", e);
+      }
+    },
+    auto_select: false,
+    cancel_on_tap_outside: true
+  });
+
+  google.accounts.id.prompt();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initGoogleOneTap();
+});
 
 const sidebar = document.getElementById("rightSidebar");
 const menuBtn = document.getElementById("menuBtn");
@@ -242,35 +273,51 @@ if (loginForm) {
 if (signupForm) {
   signupForm.addEventListener("submit", async e => {
     e.preventDefault();
-    // (keep your existing code inside)
 
+    const errorBox = document.getElementById("signupError");
 
-  const errorBox = document.getElementById("signupError");
+    const username = document.getElementById("signupUsername").value.trim();
+    const email = document.getElementById("signupEmail").value.trim();
+    const password = document.getElementById("signupPassword").value;
 
-  const username = document.getElementById("signupUsername").value.trim();
-  const email = document.getElementById("signupEmail").value.trim();
-  const password = document.getElementById("signupPassword").value;
+    // 🔐 GET TURNSTILE TOKEN
+    const token = document.querySelector(
+      "#signupForm input[name='cf-turnstile-response']"
+    )?.value;
 
-  try {
-    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    if (!token) {
+      errorBox.textContent = "Please verify you are human";
+      return;
+    }
 
-    // Create Firestore user document
-    await setDoc(doc(db, "users", userCred.user.uid), {
-      username,
-      email,
-      createdAt: serverTimestamp(),
-      xp: 0,
-      bookmarks: [],
-      settings: {
-        theme: localStorage.getItem("quizta-theme") || "light"
+    try {
+      // 🔥 VERIFY CAPTCHA FIRST (SERVER)
+      const verify = await fetch("/api/verify-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          token
+        })
+      });
+
+      const data = await verify.json();
+
+      if (!verify.ok) {
+        errorBox.textContent = data.error || "Signup failed";
+        return;
       }
-    });
 
-    closeAuth();
-  } catch (err) {
-    errorBox.textContent = err.message.replace("Firebase:", "");
-  }
-}); }
+      // ✅ SUCCESS → CLOSE MODAL
+      closeAuth();
+
+    } catch (err) {
+      errorBox.textContent = "Signup failed. Try again.";
+    }
+  });
+}
 
 async function ensureUserProfile(user) {
   if (!user) return;
@@ -620,11 +667,16 @@ onSnapshot(TEMP_TEST_REF, snap => {
    PWA SERVICE WORKER
 ========================= */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then(() => console.log("✅ Service Worker registered"))
-      .catch(err => console.error("❌ SW failed", err));
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      console.log("✅ Service Worker registered");
+
+      // 🔄 Force update check
+      reg.update();
+    } catch (err) {
+      console.error("❌ SW failed", err);
+    }
   });
 }
 
