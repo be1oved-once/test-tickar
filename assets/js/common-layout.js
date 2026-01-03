@@ -228,13 +228,30 @@
       <div class="toggle-switch active"></div>
     </div>
 
-    <div class="settings-item">
-      <span>
-        Question Timer<br>
-        <small>(Current: 45s)</small>
-      </span>
-      <div class="toggle-switch active"></div>
-    </div>
+    <div class="settings-item timer-setting" id="timerSetting">
+  <span>
+    Question Timer<br>
+    <small id="timerLabel">(Current: 45s)</small>
+  </span>
+  <div class="toggle-switch" id="timerToggle"></div>
+</div>
+
+<div class="timer-expand" id="timerExpand">
+  <div class="timer-input-wrap">
+    <input
+      type="number"
+      min="30"
+      max="400"
+      id="timerInput"
+      value="45"
+    />
+    <button id="timerSaveBtn">Save</button>
+  </div>
+
+  <small class="timer-hint">
+    Minimum 30 seconds. Applies to all quizzes.
+  </small>
+</div>
 
     <div class="settings-item">
       <span>RTP / MTP Exam Mode<br><small>100 Q = 120 mins</small></span>
@@ -367,6 +384,7 @@
         <h4>About</h4>
         <a href="/About-us.html">About Us</a>
         <a href="/Legal/our-mission.html">Our Mission</a>
+        <a href="/blogs.html">Blogs</a>
       </div>
     </div>
 
@@ -380,6 +398,13 @@
 
   document.body.insertAdjacentHTML("beforeend", layoutHTML);
 })();
+
+
+window.addEventListener("DOMContentLoaded", () => {
+  if (window.initSettings) {
+    window.initSettings();
+  }
+});
 /* =========================
    PWA INSTALL BANNER HTML
 ========================= */

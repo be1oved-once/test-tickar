@@ -65,7 +65,7 @@ let marks = 0;
 let round1Completed = false;
 let timer = null;
 let autoNextTimeout = null;
-let timeLeft = 45;
+let timeLeft = 45; // SAFE FALLBACK ONLY
 let answered = false;
 
 let activeQuestions = [];
@@ -231,9 +231,13 @@ if (marksValue) marksValue.textContent = "0";
   limit = Math.max(1, Math.min(limit, max));
   limitInput.value = limit;
 
-  baseQuestions = currentChapter.questions
-    .slice(0, limit)
-    .map(q => ({
+  let qs = [...currentChapter.questions];
+
+if (window.TIC_SETTINGS.randomizeQuestions === true) {
+  qs.sort(() => Math.random() - 0.5);
+}
+
+baseQuestions = qs.slice(0, limit).map(q => ({
   ...q,
   attempted: false,
   everAttempted: false,
@@ -320,7 +324,10 @@ function startRound(list) {
 ========================= */
 function startTimer() {
   clearInterval(timer);
-  timeLeft = 45;
+
+  const settings = window.TIC_SETTINGS || {};
+  timeLeft = Number(settings.questionTime || 45);
+
   updateTimer();
 
   timer = setInterval(() => {
@@ -329,7 +336,7 @@ function startTimer() {
 
     if (timeLeft <= 0) {
       clearInterval(timer);
-      autoNext(); // ⬅ NO correct shown
+      autoNext();
     }
   }, 1000);
 }
@@ -485,9 +492,19 @@ qText.appendChild(star);
 
   optionsBox.innerHTML = "";
 
-  q.options.forEach((opt, i) => {
+  let options = [...q.options];
+
+if (window.TIC_SETTINGS.randomizeOptions) {
+  options.sort(() => Math.random() - 0.5);
+}
+
+options.forEach((opt, i) => {
     const btn = document.createElement("button");
-    btn.textContent = opt;
+    const prefix = window.TIC_SETTINGS.showABCD === true
+  ? String.fromCharCode(65 + i) + ". "
+  : "";
+
+btn.textContent = prefix + opt;
     btn.disabled = q.attempted;
 
     if (q.attempted && i === q.correctIndex) {
@@ -501,7 +518,12 @@ qText.appendChild(star);
   prevBtn.disabled = qIndex === 0;
   nextBtn.disabled = !q.attempted;
 
-  if (!q.attempted) startTimer();
+  if (!q.attempted && window.TIC_SETTINGS.questionTimer === true) {
+  startTimer();
+} else {
+  clearTimer();
+  timeEl.textContent = "--";
+}
 }
 
 /* =========================
@@ -537,7 +559,11 @@ if (idx === q.correctIndex) {
 updateBestXpIfNeeded();       // update best XP if today beats record
   }
 
-  setTimeout(next, 1000);
+  if (window.TIC_SETTINGS.autoSkip) {
+  autoNextTimeout = setTimeout(next, 1000);
+} else {
+  nextBtn.disabled = false;
+}
 } else {
   btn.classList.add("wrong");
   all[q.correctIndex].classList.add("correct");
@@ -552,9 +578,11 @@ if (round === 1) {
   nextBtn.disabled = false;
 
   // ⏳ Auto move after 3s (if user doesn't click)
+  if (window.TIC_SETTINGS.autoSkip) {
   autoNextTimeout = setTimeout(() => {
     next();
   }, 3000);
+}
     q.selectedIndex = idx;
 }
 }

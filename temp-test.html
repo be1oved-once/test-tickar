@@ -25,12 +25,213 @@
 <link rel="manifest" href="assets/favicon/site.webmanifest">
 
 <meta name="theme-color" content="#6c63ff">
+<style>
+  /* =========================
+   STUDENT TEST SKELETON
+========================= */
+
+.student-skeleton {
+  padding: 16px;
+  max-width: 720px;
+  margin: auto;
+}
+
+.student-skeleton > div {
+  margin-bottom: 14px;
+}
+
+/* shimmer base */
+.student-skeleton div[class^="sk-"] {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.06) 25%,
+    rgba(0,0,0,0.12) 37%,
+    rgba(0,0,0,0.06) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 12px;
+}
+
+body.dark .student-skeleton div[class^="sk-"] {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.06) 25%,
+    rgba(255,255,255,0.12) 37%,
+    rgba(255,255,255,0.06) 63%
+  );
+}
+
+.sk-head {
+  height: 34px;
+  width: 140px;
+  margin-bottom: 10px;
+}
+
+.sk-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+}
+
+.sk-line {
+  height: 14px;
+  width: 60%;
+  margin-bottom: 8px;
+}
+
+.sk-line.short {
+  width: 40%;
+}
+
+.sk-pill {
+  height: 30px;
+  width: 120px;
+  border-radius: 999px;
+}
+
+.sk-textarea {
+  height: 70px;
+  width: 100%;
+}
+
+.sk-qcount {
+  height: 24px;
+  width: 90px;
+  margin-left: auto;
+}
+
+.sk-question {
+  height: 22px;
+  width: 90%;
+  margin-bottom: 12px;
+}
+
+.sk-option {
+  height: 36px;
+  width: 100%;
+  margin-bottom: 8px;
+  border-radius: 10px;
+}
+
+/* hide real UI initially */
+/* Skeleton only hides via class, not CSS hard-hide */
+.hidden-by-skeleton {
+  display: none !important;
+}
+/* =========================
+   ACTIVE / LIVING SKELETON
+========================= */
+
+/* Wrapper shimmer sweep */
+.student-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Moving light sweep */
+.student-skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 60%;
+  height: 100%;
+
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.25) 50%,
+    transparent 100%
+  );
+
+  animation: skeleton-sweep 1.8s infinite;
+}
+
+/* Dark mode sweep */
+body.dark .student-skeleton::after {
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.18) 50%,
+    transparent 100%
+  );
+}
+
+/* Gentle breathing effect */
+.student-skeleton {
+  animation: skeleton-breathe 2.4s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes skeleton-sweep {
+  0% {
+    left: -60%;
+  }
+  100% {
+    left: 120%;
+  }
+}
+
+@keyframes skeleton-breathe {
+  0%,
+  100% {
+    opacity: 0.96;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.student-skeleton div[class^="sk-"] {
+  animation:
+    shimmer 1.4s infinite,
+    line-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes line-pulse {
+  0%, 100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.98);
+  }
+}
+
+</style>
 </head>
 
 <body>
 
   <!-- PAGE CONTENT ONLY -->
 <main class="practice-page">
+  <!-- ================= STUDENT TEST SKELETON ================= -->
+<div id="studentSkeleton" class="student-skeleton">
+
+  <div class="sk-head"></div>
+
+  <div class="sk-card">
+    <div class="sk-line short"></div>
+    <div class="sk-pill"></div>
+  </div>
+
+  <div class="sk-card">
+    <div class="sk-textarea"></div>
+  </div>
+
+  <div class="sk-card">
+    <div class="sk-qcount"></div>
+  </div>
+
+  <div class="sk-card">
+    <div class="sk-question"></div>
+    <div class="sk-option"></div>
+    <div class="sk-option"></div>
+    <div class="sk-option"></div>
+    <div class="sk-option"></div>
+  </div>
+
+</div>
+
   <div class="head-box">
     
   <div class="header-text">
@@ -38,7 +239,7 @@
   </div>
 
   </div>
-<section class="quiz-setup">
+<section class="quiz-setup hidden-by-skeleton">
 
 <!-- SUBJECT + XP ROW -->
 <div class="select-row subject-row">
@@ -79,7 +280,7 @@
   </div>
 </section>
 
-<section id="quizArea" class="quiz-area hidden">
+<section id="quizArea" class="quiz-area hidden-by-skeleton hidden">
 <div class="timer" id="timerWrap">
   <span class="timer-icon">
     <svg viewBox="0 0 24 24" class="clock-svg">

@@ -71,6 +71,8 @@ let round1Completed = false;
 let timer = null;
 let autoNextTimeout = null;
 let timeLeft = 45;
+let examTimer = null;
+let examTimeLeft = 0;
 let answered = false;
 let round1Snapshot = [];
 window.round1Snapshot = round1Snapshot;
@@ -291,6 +293,7 @@ startRound(baseQuestions);
    RESET
 ========================= */
 resetBtn.onclick = () => {
+  clearExamTimer();
   resetReviewState();
   marks = 0;
 round1Completed = false;
@@ -339,7 +342,25 @@ function startRound(list) {
   activeQuestions = list;
   qIndex = 0;
   quizArea.classList.remove("hidden");
-  renderQuestion();
+
+  // 🔥 MTP EXAM MODE (120 mins)
+  if (
+    window.TIC_SETTINGS?.rtpExamMode &&
+    selectedAttempt?.type === "MTP"
+  ) {
+    clearTimer(); // disable per-question timer
+    startExamTimer(120); // 120 minutes
+  }
+
+  if (
+  window.TIC_SETTINGS?.rtpExamMode &&
+  selectedAttempt?.type === "MTP"
+) {
+  clearTimer();
+  startExamTimer(120); // 🔥 120 minutes
+}
+
+renderQuestion();
 }
 
 /* =========================
@@ -347,7 +368,16 @@ function startRound(list) {
 ========================= */
 function startTimer() {
   clearInterval(timer);
-  timeLeft = 45;
+
+  // ⛔ DO NOT RUN IN MTP EXAM MODE
+  if (
+    window.TIC_SETTINGS?.rtpExamMode &&
+    selectedAttempt?.type === "MTP"
+  ) {
+    return;
+  }
+
+  timeLeft = Number(window.TIC_SETTINGS?.questionTime || 45);
   updateTimer();
 
   timer = setInterval(() => {
@@ -356,9 +386,9 @@ function startTimer() {
 
     if (timeLeft <= 0) {
       clearInterval(timer);
-      autoNext(); // ⬅ NO correct shown
+      autoNext();
     }
-  }, 700);
+  }, 1000); // ⬅ FIXED from 700ms
 }
 
 function updateTimer() {
@@ -370,6 +400,44 @@ function clearTimer() {
   clearInterval(timer);
 }
 
+/* =========================
+   EXAM TIMER (MTP MODE)
+========================= */
+
+/* =========================
+   MTP EXAM TIMER (120 MIN)
+========================= */
+
+function startExamTimer(minutes) {
+  clearExamTimer();
+  
+  examTimeLeft = minutes * 60;
+  updateExamTimer();
+  
+  examTimer = setInterval(() => {
+    examTimeLeft--;
+    updateExamTimer();
+    
+    if (examTimeLeft <= 0) {
+      clearExamTimer();
+      finishRound(); // auto submit
+    }
+  }, 1000);
+}
+
+function updateExamTimer() {
+  const m = Math.floor(examTimeLeft / 60);
+  const s = examTimeLeft % 60;
+  timeEl.textContent =
+    String(m).padStart(2, "0") +
+    ":" +
+    String(s).padStart(2, "0");
+}
+
+function clearExamTimer() {
+  clearInterval(examTimer);
+  examTimer = null;
+}
 /* =========================
    RENDER
 ========================= */
@@ -425,7 +493,15 @@ autoNextTimeout = null;
   prevBtn.disabled = qIndex === 0;
   nextBtn.disabled = !q.attempted;
 
-  if (!q.attempted) startTimer();
+  if (
+  !q.attempted &&
+  !(
+    window.TIC_SETTINGS?.rtpExamMode &&
+    selectedAttempt?.type === "MTP"
+  )
+) {
+  startTimer();
+}
 }
 
 /* =========================
@@ -527,6 +603,7 @@ nextBtn.onclick = () => {
    FINISH ROUND
 ========================= */
 function finishRound() {
+  clearExamTimer();
   if (round === 1 && !round1Completed) {
     round1Completed = true;
 

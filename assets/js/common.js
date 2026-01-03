@@ -460,14 +460,16 @@ function closeSettings() {
 settingsClose?.addEventListener("click", closeSettings);
 
 settingsModal?.addEventListener("click", e => {
-  if (e.target === settingsModal) closeSettings();
+  if (e.target.classList.contains("settings-modal")) {
+    closeSettings();
+  }
 });
+document
+  .querySelector(".settings-box")
+  ?.addEventListener("click", e => e.stopPropagation());
 
 /* Toggle UI only */
-document.addEventListener("click", e => {
-  if (!e.target.classList.contains("toggle-switch")) return;
-  e.target.classList.toggle("active");
-});
+
 
 /* expose globally */
 window.openSettings = openSettings;
@@ -647,7 +649,6 @@ onAuthStateChanged(auth, user => {
 });
 
 const TEMP_TEST_REF = doc(db, "tempTests", "current");
-
 onSnapshot(TEMP_TEST_REF, snap => {
   if (!snap.exists()) {
     injectTempTestItem(false);
@@ -655,6 +656,21 @@ onSnapshot(TEMP_TEST_REF, snap => {
   }
   
   const data = snap.data();
+  
+  // 🔥 ADMIN HEARTBEAT CHECK
+  const lastSeen = data.adminLastSeen?.toDate?.();
+  if (!lastSeen) {
+    injectTempTestItem(false);
+    return;
+  }
+  
+  const diff = Date.now() - lastSeen.getTime();
+  
+  // ⛔ Admin offline → hide test
+  if (diff > 15000) {
+    injectTempTestItem(false);
+    return;
+  }
   
   if (data.status === "live") {
     injectTempTestItem(true);

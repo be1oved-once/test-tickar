@@ -39,6 +39,21 @@ onSnapshot(TEMP_TEST_REF, (snap) => {
   if (!snap.exists()) return;
 
   const data = snap.data();
+
+// 🔥 SHOW DATE + TIME (ADMIN)
+const scheduleEl = document.getElementById("scheduleInfo");
+const expiresEl  = document.getElementById("expiresInfo");
+
+if (scheduleEl) {
+  scheduleEl.textContent =
+    formatDateTime(data.schedule?.at);
+}
+
+if (expiresEl) {
+  expiresEl.textContent =
+    formatDateTime(data.expiresAt);
+}
+
   console.log("Firestore data:", data);
 
   if (data.publishMode !== "schedule") return;
@@ -49,7 +64,7 @@ onSnapshot(TEMP_TEST_REF, (snap) => {
 
   scheduledTimeCache = scheduledAt.toDate();
 
-  console.log("📅 Scheduled at:", scheduledTimeCache.toISOString());
+  console.log("📅 Scheduled at:", formatDateTime(data.schedule?.at));
 
   // ⛔ already running checker
   if (scheduleInterval) return;
@@ -71,16 +86,30 @@ onSnapshot(TEMP_TEST_REF, (snap) => {
     scheduleInterval = null;
 
     await updateDoc(TEMP_TEST_REF, {
-      status: "live",
-      publishMode: "live",
-      "timer.startedAt": serverTimestamp()
-    });
+  status: "live",
+  publishMode: "live",
+  "timer.startedAt": serverTimestamp(),
+  adminLastSeen: serverTimestamp()
+});
+
+startAdminHeartbeat();
+openTimerPage();
 
     console.log("✅ Scheduled test is now LIVE");
 
-    openTimerPage();
   }, 1000);
 });
+let heartbeatInterval = null;
+
+function startAdminHeartbeat() {
+  if (heartbeatInterval) return;
+
+  heartbeatInterval = setInterval(() => {
+    updateDoc(TEMP_TEST_REF, {
+      adminLastSeen: serverTimestamp()
+    }).catch(() => {});
+  }, 5000);
+}
 /* =========================
    SUBJECT DROPDOWN
 ========================= */
@@ -388,8 +417,17 @@ await setDoc(TEMP_TEST_REF, firebasePayload, { merge: true });
 
   // 🔥 IMPORTANT DIFFERENCE
   if (!isScheduled) {
-    openTimerPage(); // LIVE → start now
-  } else {
+  await updateDoc(TEMP_TEST_REF, {
+    status: "live",
+    publishMode: "live",
+    "timer.startedAt": serverTimestamp(),
+    adminLastSeen: serverTimestamp()
+  });
+
+  startAdminHeartbeat();
+  openTimerPage();
+}
+else {
     alert("Test scheduled successfully");
   }
 });
@@ -597,24 +635,27 @@ clearTestBtn.disabled = false;
   startTimer();
 }
 
-function startTimer() {
+async function startTimer() {
   clearInterval(timerInterval);
 
   updateTimerDisplay();
 
-  timerInterval = setInterval(() => {
-    remainingSeconds--;
-    updateTimerDisplay();
+timerInterval = setInterval(async () => {
+  remainingSeconds--;
+  updateTimerDisplay();
 
-    if (remainingSeconds <= 0) {
-  clearInterval(timerInterval);
-  timerDisplay.textContent = "TIME UP";
+  if (remainingSeconds <= 0) {
+    clearInterval(timerInterval);
+    timerDisplay.textContent = "TIME UP";
 
-  deleteDoc(TEMP_TEST_REF)
-    .then(() => console.log("🔥 Test auto-cleared (TIME UP)"))
-    .catch(console.error);
-}
-  }, 1000);
+    try {
+      await deleteDoc(TEMP_TEST_REF);
+      console.log("🔥 Test auto-ended (TIME UP)");
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}, 1000);
 }
 
 function updateTimerDisplay() {
@@ -802,4 +843,25 @@ async function openLeaderboard() {
   renderLeaderboard(results);
 }
 
+});
+
+function formatDateTime(ts) {
+  if (!ts) return "—";
+
+  const d = ts.toDate();
+
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  });
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
 });
