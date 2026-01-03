@@ -1,3 +1,9 @@
 {
-  "cleanUrls": true
+  "cleanUrls": true,
+  "crons": [
+    {
+      "path": "/api/cleanup-temp-test",
+      "schedule": "*/1 * * * *"
+    }
+  ]
 }

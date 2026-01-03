@@ -137,7 +137,7 @@
     <span>Chapters</span></a>
 </li>
     <li class="desktop-left"><a href="/mtp-rtp.html"><i class="fa-solid fa-file-lines"></i><span>RTP / MTP</span></a></li>
-    <li class="desktop-left"><a href="/business-laws.html"><i class="fa-solid fa-file-lines"></i><span>Business Laws</span></a></li>
+    <li class="desktop-left"><a href="/business-laws.html"><i class="fa-solid fa-scale-balanced"></i></i><span>Business Laws</span></a></li>
   <li class="desktop-left"><a href="/articles.html"><i class="fa-solid fa-newspaper"></i><span>Articles</span></a></li>
   <li class="desktop-left"><a href="/About-us.html"><i class="fa-solid fa-circle-info"></i><span>About</span></a></li>
   <li class="desktop-left"><a href="javascript:void(0)" onclick="openSettings()"><i class="fa-solid fa-gear"></i><span>Settings</span></a></li>
@@ -358,15 +358,15 @@
 
       <div class="footer-col">
         <h4>Legal</h4>
-        <a href="Legal/privacy-policy.html">Privacy Policy</a>
-        <a href="Legal/terms.html">Terms & Conditions</a>
-        <a href="Legal/disclaimer.html">Disclaimer</a>
+        <a href="/Legal/privacy-policy.html">Privacy Policy</a>
+        <a href="/Legal/terms.html">Terms & Conditions</a>
+        <a href="/Legal/disclaimer.html">Disclaimer</a>
       </div>
 
       <div class="footer-col">
         <h4>About</h4>
         <a href="/About-us.html">About Us</a>
-        <a href="#">Our Mission</a>
+        <a href="/Legal/our-mission.html">Our Mission</a>
       </div>
     </div>
 
@@ -425,32 +425,34 @@ if (adminToggle && adminMenu) {
     adminMenu.classList.remove("open");
   });
 }
-function injectTempTestItem(show) {
-  // already injected?
-  const existing = document.querySelectorAll(".temp-test-item");
 
-  // REMOVE if not live
+function injectTempTestItem(show) {
+  const leftSidebar = document.querySelector("#leftSidebar .sidebar-list");
+  if (!leftSidebar) return;
+
+  const existing = leftSidebar.querySelector(".temp-test-item");
+
+  // ❌ remove if not live
   if (!show) {
-    existing.forEach(el => el.remove());
+    existing?.remove();
     return;
   }
 
-  // CREATE item
-  const liHTML = `
+  // ✅ already exists
+  if (existing) return;
+
+  // ✅ inject ONLY in left sidebar
+  leftSidebar.insertAdjacentHTML(
+    "afterbegin",
+    `
     <li class="temp-test-item">
       <a href="/temp-test.html">
         <i class="fa-solid fa-bolt"></i>
         <span>Temp Test</span>
       </a>
     </li>
-  `;
-
-  // 👉 mobile-left
-  document.querySelectorAll(".sidebar-list").forEach(list => {
-    if (!list.querySelector(".temp-test-item")) {
-      list.insertAdjacentHTML("afterbegin", liHTML);
-    }
-  });
+    `
+  );
 }
 /* =========================
    OFFLINE BANNER (GLOBAL)

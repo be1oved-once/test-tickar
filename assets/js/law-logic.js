@@ -730,5 +730,4 @@ const r = new RegExp(`\\b${safe}\\b`, "i");
     xp
   };
 }
-
 window.evaluateLawAnswer = evaluateLawAnswer;

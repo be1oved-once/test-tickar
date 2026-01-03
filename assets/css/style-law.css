@@ -651,7 +651,7 @@ body.dark .option-textarea:not(.readonly):focus {
 }
 
 .law-answer-box {
-  min-height: 160px;          /* 🔥 THIS IS REQUIRED */
+  min-height: 300px;          /* 🔥 THIS IS REQUIRED */
   padding: 12px;
   border-radius: 14px;
   border: 1.5px solid var(--border-light);
@@ -666,6 +666,7 @@ body.dark .option-textarea:not(.readonly):focus {
   content: "Write your answer here...";
   color: #9ca3af;
 }
+
 .law-answer-box.readonly {
   background: rgba(0,0,0,0.03);
   pointer-events: none;

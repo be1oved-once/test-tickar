@@ -353,29 +353,32 @@ if (isScheduled) {
 }
 
   const firebasePayload = {
-    subject: payload.subject,
-    pageText: payload.pageText,
-    questionMode,
-
-    publishMode: isScheduled ? "schedule" : "live",
-
-    schedule: isScheduled
-  ? {
-      at: scheduleAt   // 🔥 ONLY timestamp
-    }
-  : null,
-
-    timer: {
-      minutes: mins,
-      startedAt: !isScheduled ? serverTimestamp() : null
-    },
-
-    questions: payload.questions,
-
-    status: isScheduled ? "scheduled" : "live",
-
-    createdAt: serverTimestamp()
-  };
+  subject: payload.subject,
+  pageText: payload.pageText,
+  questionMode,
+  
+  publishMode: isScheduled ? "schedule" : "live",
+  
+  schedule: isScheduled ?
+    { at: scheduleAt } :
+    null,
+  
+  timer: {
+    minutes: mins,
+    startedAt: !isScheduled ? serverTimestamp() : null
+  },
+  
+  // 🔥 ADD THIS (VERY IMPORTANT)
+  expiresAt: Timestamp.fromDate(
+    new Date(Date.now() + mins * 60 * 1000)
+  ),
+  
+  questions: payload.questions,
+  
+  status: isScheduled ? "scheduled" : "live",
+  
+  createdAt: serverTimestamp()
+};
 
 const testId = "temp_" + Date.now();
 
@@ -637,7 +640,6 @@ clearTestBtn?.addEventListener("click", () => {
   showConfirmToast(
     "Clear entire test setup?",
     async () => {
-      await deleteDoc(TEMP_TEST_REF);
       // ⛔ Stop timer
       clearInterval(timerInterval);
 

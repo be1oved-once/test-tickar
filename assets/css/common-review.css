@@ -226,6 +226,21 @@ body.dark .pdf-btn {
   );
   border-radius: 10px;
 }
+/* =========================
+   DARK MODE – review-content scrollbar
+========================= */
+
+body.dark .review-content {
+  scrollbar-color: rgba(139,92,246,.7) transparent;
+}
+
+body.dark .review-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(139,92,246,.9),
+    rgba(139,92,246,.4)
+  );
+}
 /* Dark mode */
 body.dark .review-panel {
   border-color: rgba(255,255,255,0.12);
