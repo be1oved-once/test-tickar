@@ -213,6 +213,11 @@ if (resultActions) resultActions.classList.add("hidden");
    START
 ========================= */
 startBtn.onclick = () => {
+  enablePenaltySystem();
+
+if (isViewportTooSmall()) {
+  showPenalty("small-viewport");
+}
   quizActive = true;   
   resetReviewState();
   if (resultActions) resultActions.classList.add("hidden");
@@ -254,6 +259,7 @@ baseQuestions = qs.slice(0, limit).map(q => ({
    RESET
 ========================= */
 resetBtn.onclick = () => {
+  disablePenaltySystem();
   quizActive = false;          // 🔥 ADD THIS
   penaltyRunning = false;
   // 🔥 Clear previous attempt data
@@ -632,6 +638,7 @@ nextBtn.onclick = () => {
    FINISH ROUND
 ========================= */
 function finishRound() {
+  disablePenaltySystem();
   quizActive = false; // 🔥 DISABLE CHEAT CHECK
 penaltyRunning = false;
 
@@ -854,4 +861,113 @@ window.addEventListener("load", () => {
     skeleton.style.display = "none";
     content.style.display = "block";
   }, delay);
+});
+/* =========================
+   PENALTY / FOCUS SYSTEM
+========================= */
+
+const penaltyOverlay = document.getElementById("penaltyOverlay");
+const penaltyTimeEl = document.getElementById("penaltyTime");
+
+let penaltyTimer = null;
+let penaltySeconds = 45;
+let quizStarted = false;
+
+/* ===== PUBLIC CONTROLS ===== */
+function enablePenaltySystem() {
+  quizStarted = true;
+}
+
+function disablePenaltySystem() {
+  quizStarted = false;
+  hidePenalty();
+}
+
+/* ===== CORE ===== */
+function showPenalty(reason = "") {
+  if (!quizStarted || penaltyRunning) return;
+
+  penaltyRunning = true;
+  penaltySeconds = 45;
+  penaltyTimeEl.textContent = penaltySeconds;
+
+  document.body.classList.add("penalty-lock");
+  penaltyOverlay.classList.remove("hidden");
+triggerPenaltyVibration();
+
+  clearInterval(penaltyTimer);
+  penaltyTimer = setInterval(() => {
+    penaltySeconds--;
+    penaltyTimeEl.textContent = penaltySeconds;
+
+    if (penaltySeconds <= 0) {
+      hidePenalty();
+    }
+  }, 1000);
+}
+
+function hidePenalty() {
+  clearInterval(penaltyTimer);
+  penaltyTimer = null;
+  penaltyRunning = false;
+
+  penaltyOverlay.classList.add("hidden");
+  document.body.classList.remove("penalty-lock");
+}
+function triggerPenaltyVibration() {
+  if (!navigator.vibrate) return;
+
+  // Subtle but disturbing pattern
+  navigator.vibrate([
+    120,   // vibrate
+    80,    // pause
+    120,
+    80,
+    200
+  ]);
+}
+function isViewportTooSmall() {
+  const minWidth = 360;   // safe phone width
+  const minHeight = 520;  // safe quiz height
+
+  return (
+    window.innerWidth < minWidth ||
+    window.innerHeight < minHeight
+  );
+}
+
+/* =========================
+   DETECTION HOOKS
+========================= */
+
+// TAB / APP SWITCH
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    showPenalty("tab-switch");
+  }
+});
+
+// WINDOW BLUR (mobile app background)
+window.addEventListener("blur", () => {
+  showPenalty("blur");
+});
+
+// VIEWPORT / SPLIT SCREEN
+let lastWidth = window.innerWidth;
+let lastHeight = window.innerHeight;
+
+window.addEventListener("resize", () => {
+  if (!quizStarted) return;
+
+  if (isViewportTooSmall()) {
+    showPenalty("resize-small");
+  }
+});
+
+// PAGE RELOAD WARNING
+window.addEventListener("beforeunload", e => {
+  if (quizStarted) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
 });
