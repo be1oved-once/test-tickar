@@ -124,7 +124,10 @@ body.dark .auth-strip{
   background: linear-gradient(135deg, #6c63ff, #8b5cf6);
   color: #fff;
 }
-
+.primary a{
+  text-decoration: none;
+  color: inherit;
+}
 /* Secondary */
 .btn.secondary {
   background: transparent;
