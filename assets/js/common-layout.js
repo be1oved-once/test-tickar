@@ -89,6 +89,21 @@
   <hr class="sidebar-hr" />
 
 <ul class="sidebar-list">
+
+  <!-- 🔒 LOGIN LOCK OVERLAY -->
+  <div id="loginLockOverlay" class="login-lock-overlay">
+    <div class="login-lock-box">
+      <i class="fa-solid fa-lock"></i>
+      <h4>Login Required</h4>
+      <p>
+        Student functions LOCKED<br>
+      </p>
+      <button class="primary-btn pill"
+              onclick="openAuth('login')">
+        Login to Unlock
+      </button>
+    </div>
+  </div>
 <li class="admin-only admin-dropdown" style="display:none;">
   <button class="admin-toggle" id="adminToggle">
     <i class="fa-solid fa-shield-halved"></i>

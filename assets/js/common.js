@@ -399,6 +399,12 @@ googleBtn.addEventListener("click", async () => {
 
 onAuthStateChanged(auth, async user => {
 
+const lock = document.getElementById("loginLockOverlay");
+
+if (lock) {
+  lock.style.display = user ? "none" : "flex";
+}
+
   const loginBtns = document.querySelectorAll(".auth-login");
   const signupBtns = document.querySelectorAll(".auth-signup");
   const logoutBtns = document.querySelectorAll(".auth-logout");
