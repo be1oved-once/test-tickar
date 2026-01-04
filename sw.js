@@ -2,7 +2,7 @@
 
 const CACHE_NAME = "tickar-static-v1";
 
-const CACHE_ASSETS = [
+const PRECACHE = [
   "/",
   "/index.html",
   "/offline.html",
