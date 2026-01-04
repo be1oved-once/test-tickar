@@ -846,7 +846,12 @@ body.dark .auth-form input:focus {
 .primary-btn:hover {
   background: #4338ca;
 }
-
+body.dark .primary-btn{
+  background: #4338ca;
+}
+body.dark .primary-btn:hover {
+  background: var(--accent)
+}
 /* Switch */
 .auth-switch {
   margin-top: 14px;
@@ -1983,4 +1988,61 @@ body.dark .footer-bottom {
     box-shadow: 0 12px 30px rgba(0,0,0,0.35);
     transform: translateX(-50%) scale(1);
   }
+}
+/* =========================
+   LEFT SIDEBAR LOGIN LOCK
+========================= */
+.login-lock-overlay {
+  position: absolute;
+  top: 52px;              /* ⬅ below sidebar header */
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  background: rgba(255,255,255,0.78); /* lighter */
+  backdrop-filter: blur(3px);
+  z-index: 20;
+
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dark mode */
+body.dark .login-lock-overlay {
+  background: rgba(2,6,23,0.72);
+}
+.login-lock-box {
+  text-align: center;
+  padding: 26px 28px;
+  border-radius: 18px;
+
+  background: rgba(255,255,255,0.10);
+  box-shadow:
+    0 18px 40px rgba(15,23,42,0.28);
+
+  max-width: 240px;
+}
+
+/* Dark */
+body.dark .login-lock-box {
+  background: rgba(15,23,42,0.9);
+}
+
+.login-lock-box i {
+  font-size: 14px;
+  color: #4f46e5;
+  margin-bottom: 8px;
+}
+
+.login-lock-box h4 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.login-lock-box p {
+  font-size: 13px;
+  opacity: 0.85;
+  line-height: 1.45;
+  margin-bottom: 14px;
 }
