@@ -153,8 +153,16 @@
   </p>
 </div>
 <div class="auth-actions">
-  <a href="javascript:void(0)" class="auth-btn login-btn auth-login" onclick="openAuth()">Login</a>
-  <a href="javascript:void(0)" class="auth-btn signup-btn auth-signup" onclick="openAuth()">Sign Up</a>
+<a href="javascript:void(0)"
+   class="auth-btn login-btn auth-login"
+   onclick="openAuth('login')">
+  Login
+</a>
+<a href="javascript:void(0)"
+   class="auth-btn signup-btn auth-signup"
+   onclick="openAuth('signup')">
+  Sign Up
+</a>
   <a href="javascript:void(0)" class="auth-btn login-btn auth-logout" style="display:none;">LogOut</a>
 </div>
 </ul>
@@ -191,8 +199,16 @@
   </div>
 </div>
 <div class="auth-actions auth-actions-right">
-  <a href="javascript:void(0)" class="auth-btn login-btn auth-login" onclick="openAuth()">Login</a>
-  <a href="javascript:void(0)" class="auth-btn signup-btn auth-signup" onclick="openAuth()">Sign Up</a>
+<a href="javascript:void(0)"
+   class="auth-btn login-btn auth-login"
+   onclick="openAuth('login')">
+  Login
+</a>
+<a href="javascript:void(0)"
+   class="auth-btn signup-btn auth-signup"
+   onclick="openAuth('signup')">
+  Sign Up
+</a>
   <a href="javascript:void(0)" class="auth-btn login-btn auth-logout" style="display:none;">LogOut</a>
 </div>
 

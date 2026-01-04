@@ -208,9 +208,29 @@ const loginForm = document.getElementById("loginForm");
 const signupForm = document.getElementById("signupForm");
 const switchText = document.getElementById("switchText");
 
-function openAuth() {
+function openAuth(mode = "login") {
   authModal.classList.add("show");
   document.body.style.overflow = "hidden";
+
+  // reset errors
+  document.getElementById("loginError").textContent = "";
+  document.getElementById("signupError").textContent = "";
+
+  if (mode === "signup") {
+    loginForm.classList.add("hidden");
+    signupForm.classList.remove("hidden");
+
+    authTitle.textContent = "Sign Up";
+    switchText.textContent = "Already have an account?";
+    switchAuth.textContent = "Login";
+  } else {
+    signupForm.classList.add("hidden");
+    loginForm.classList.remove("hidden");
+
+    authTitle.textContent = "Login";
+    switchText.textContent = "Not have an account?";
+    switchAuth.textContent = "Sign Up";
+  }
 }
 
 function closeAuth() {
