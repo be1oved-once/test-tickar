@@ -26,29 +26,30 @@ function initGoogleOneTap() {
   if (!window.google || !auth) return;
 
   google.accounts.id.initialize({
-    client_id:
-      "54581941326-9bsoei7p9gem6bff3pjsl5tju1ckst8l.apps.googleusercontent.com",
-    callback: async response => {
+    client_id: "54581941326-9bsoei7p9gem6bff3pjsl5tju1ckst8l.apps.googleusercontent.com", // SAME AS FIREBASE
+    callback: async (response) => {
       try {
         const credential = GoogleAuthProvider.credential(
           response.credential
         );
+
         await signInWithCredential(auth, credential);
+
         console.log("✅ One Tap login success");
-      } catch (e) {
-        console.error("❌ One Tap failed", e);
+      } catch (err) {
+        console.error("❌ One Tap sign-in failed:", err);
       }
     },
+
     auto_select: false,
-    cancel_on_tap_outside: true
+    cancel_on_tap_outside: true,
+    context: "signin"
   });
 
-  google.accounts.id.prompt();
+google.accounts.id.prompt();
 }
+document.addEventListener("DOMContentLoaded", initGoogleOneTap);
 
-document.addEventListener("DOMContentLoaded", () => {
-  initGoogleOneTap();
-});
 
 const sidebar = document.getElementById("rightSidebar");
 const menuBtn = document.getElementById("menuBtn");
