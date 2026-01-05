@@ -569,7 +569,17 @@ body.dark .thought-arrow {
   body.dark .left-sidebar{
     border-right: 1px solid #33343A;
   }
-
+#leftSidebar {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  -ms-overflow-style: none;   /* IE & Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+#leftSidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
   /* Kill overlay visually & functionally */
   .side-overlay {
     display: none !important;
@@ -1706,6 +1716,60 @@ body.dark .notify-item:hover {
   .quiz-nav .nav-text {
     font-size: 15px;       /* center text matches buttons */
   }
+  /* Remove mobile lock overlay on desktop */
+  .login-lock-overlay {
+    display: none !important;
+  }
+
+  /* Profile lock badge */
+
+  /* Profile popup (login required) */
+  .profile-lock-popup {
+    position: absolute;
+    top: 44px;
+    right: 0;
+    width: 200px;
+    padding: 14px 16px;
+
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+
+    box-shadow: 0 18px 40px rgba(0,0,0,0.15);
+    z-index: 200;
+
+    display: none;
+    text-align: center;
+  }
+
+  .profile-lock-popup p {
+    font-size: 13px;
+    margin-bottom: 10px;
+    color: #1f2937;
+  }
+
+  .profile-lock-popup button {
+    background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* Dark mode */
+  body.dark .profile-lock-popup {
+    background: #0f172a;
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  body.dark .profile-lock-popup p {
+    color: #e5e7eb;
+  }
+  .profile-wrap {
+    position: relative; /* ✅ REQUIRED */
+  }
 }
 /* ===== ADMIN DROPDOWN ===== */
 .admin-dropdown {
@@ -1992,62 +2056,132 @@ body.dark .footer-bottom {
 /* =========================
    LEFT SIDEBAR LOGIN LOCK
 ========================= */
+
 .login-lock-overlay {
   position: absolute;
-  top: 52px;              /* ⬅ below sidebar header */
+  top: 56px;               /* below sidebar header */
   left: 0;
   right: 0;
   bottom: 0;
 
-  background: rgba(255,255,255,0.78); /* lighter */
-  backdrop-filter: blur(3px);
+  background: rgba(255, 255, 255, 0.21);
+  backdrop-filter: blur(6px);
   z-index: 20;
 
   display: none;
-  align-items: center;
+  align-items: flex-start;        /* 👈 desktop fix */
   justify-content: center;
+
+  padding-top: 42px;              /* 👈 push box down slightly */
 }
 
-/* Dark mode */
+/* Dark mode overlay */
 body.dark .login-lock-overlay {
-  background: rgba(2,6,23,0.72);
+  background: rgba(2, 6, 23, 0.25);
 }
+
+/* =========================
+   LOCK BOX
+========================= */
+
 .login-lock-box {
   text-align: center;
-  padding: 26px 28px;
-  border-radius: 18px;
+  padding: 28px 26px;
+  border-radius: 20px;
 
-  background: rgba(73, 73, 73, 0.1);
+  background: rgba(253, 255, 255, 0.25);
   box-shadow:
-    0 18px 40px rgba(15,23,42,0.28);
+    0 18px 45px rgba(79, 70, 229, 0.18),
+    0 6px 18px rgba(0, 0, 0, 0.08);
 
-  max-width: 240px;
+  max-width: 260px;
+  width: calc(100% - 40px);
 }
 
-/* Dark */
+/* Dark box */
 body.dark .login-lock-box {
-  background: rgba(161, 164, 199, 0.25);
+  background: rgba(53, 51, 51, 0.25);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.21),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
+
+/* =========================
+   ICON
+========================= */
 
 .login-lock-box i {
-  font-size: 14px;
+  font-size: 18px;
   color: #4f46e5;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
+body.dark .login-lock-box i {
+  color: #818cf8;
+}
+
+/* =========================
+   TEXT
+========================= */
+
 .login-lock-box h4 {
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 600;
   margin-bottom: 6px;
+  color: #111827;
+}
+
+body.dark .login-lock-box h4 {
+  color: #e5e7eb;
 }
 
 .login-lock-box p {
-  font-size: 13px;
-  opacity: 0.85;
-  line-height: 1.45;
-  margin-bottom: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #4b5563;
+  margin-bottom: 16px;
 }
-@media (min-width: 768px){
+
+body.dark .login-lock-box p {
+  color: #cbd5e1;
+}
+
+/* =========================
+   BUTTON
+========================= */
+
+.login-lock-box .login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+
+  border-radius: 999px;
+  border: none;
+
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.35);
+
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.login-lock-box .login-btn:active {
+  transform: scale(0.96);
+}
+
+/* =========================
+   MOBILE (CENTERED)
+========================= */
+
+@media (max-width: 767px) {
   .login-lock-overlay {
-    top: 50px;
+    align-items: center;
+    padding-top: 0;
   }
 }

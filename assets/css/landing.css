@@ -617,3 +617,101 @@ body.dark .truth-line {
 body.dark .truth-sub {
   color: #cbd5e1;
 }
+/* =========================
+   DESKTOP FIXES (≥768px)
+   DO NOT AFFECT MOBILE
+========================= */
+@media (min-width: 768px) {
+
+  /* ---------- Global landing width ---------- */
+  .landing,
+  .why-section,
+  .demo-quiz-section,
+  .achievement-wrap,
+  .truth-box {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ---------- Auth strip alignment ---------- */
+  .auth-strip {
+    margin-left: 0;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .auth-strip-inner {
+    max-width: 960px;
+    margin: 0 auto 10px;
+  }
+
+  /* ---------- Landing section ---------- */
+  .landing {
+    margin-top: 40px;
+    padding: 40px 32px 60px;
+  }
+
+  .landing-title {
+    font-size: 28px;
+  }
+
+  /* ---------- Why section ---------- */
+  .why-section {
+    margin: 80px auto;
+    padding: 0 32px;
+  }
+
+  .why-title {
+    font-size: 14px;
+  }
+
+  .why-content {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  /* ---------- Demo quiz ---------- */
+  .demo-quiz-section {
+    margin: 80px auto;
+  }
+
+  .demo-quiz-box {
+    padding: 18px 22px 22px;
+  }
+
+  /* ---------- Achievement section ---------- */
+  .section-achievement {
+    padding: 110px 32px;
+  }
+
+  .achievement-title {
+    font-size: 26px;
+  }
+
+  .achievement-desc {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .achievement-flow {
+    gap: 14px;
+  }
+
+  /* ---------- Truth / controversial line ---------- */
+  .truth-section {
+    padding: 80px 32px;
+  }
+
+  .truth-line {
+    font-size: 28px;
+  }
+
+  .truth-sub {
+    font-size: 15.5px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+}

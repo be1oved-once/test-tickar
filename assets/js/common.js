@@ -533,6 +533,53 @@ document.addEventListener("click", () => {
   closeProfilePopup();
 });
 /* =========================
+   DESKTOP PROFILE LOCK
+========================= */
+/* =========================
+   DESKTOP PROFILE HARD LOCK
+========================= */
+onAuthStateChanged(auth, user => {
+  const profileBtn = document.getElementById("profileBtn");
+  const profilePopup = document.getElementById("profilePopup");
+  const lockPopup = document.getElementById("profileLockPopup");
+  const profileWrap = document.querySelector(".profile-wrap");
+
+  if (!profileBtn || !profileWrap) return;
+
+  // Desktop only
+  if (window.innerWidth < 768) return;
+
+  // Mark locked state
+  profileWrap.classList.toggle("locked", !user);
+
+  // REMOVE previous click handlers safely
+  profileBtn.replaceWith(profileBtn.cloneNode(true));
+  const newProfileBtn = document.getElementById("profileBtn");
+
+  newProfileBtn.addEventListener("click", e => {
+    e.stopPropagation();
+
+    // 🚫 USER NOT LOGGED IN
+    if (!user) {
+      profilePopup.style.maxHeight = null; // FORCE CLOSE
+      lockPopup.style.display = "block";
+      return;
+    }
+
+    // ✅ USER LOGGED IN → normal behavior
+    lockPopup.style.display = "none";
+    profilePopup.style.maxHeight
+      ? (profilePopup.style.maxHeight = null)
+      : (profilePopup.style.maxHeight =
+          profilePopup.scrollHeight + "px");
+  });
+
+  // Click outside closes lock popup
+  document.addEventListener("click", () => {
+    lockPopup.style.display = "none";
+  });
+});
+/* =========================
    NOTIFICATIONS (GLOBAL)
 ========================= */
 

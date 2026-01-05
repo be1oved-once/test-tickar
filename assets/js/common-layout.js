@@ -42,6 +42,10 @@
         <hr>
         <a href="javascript:void(0)" class="auth-logout">Logout</a>
       </div>
+      <div class="profile-lock-popup" id="profileLockPopup">
+  <p>Login to unlock</p>
+  <button onclick="openAuth('login')">Login</button>
+</div>
     </div>
 
   </div>
