@@ -1,72 +1,25 @@
 
 
-const CACHE_NAME = "tickar-static-v1";
+const CACHE_NAME = "tic-kar-v3";
 
+/* =========================
+   PRECACHE (SAFE)
+========================= */
 const PRECACHE = [
-  "/",
-  "/index.html",
-  "/offline.html",
-  "/performance.html",
-  "/mtp-rtp.html",
+"/",
+"/index.html",
+"/offline.html",
 
-  // static pages
-  "/about-us.html",
-  "/blogs.html",
-  "/bookmarks.html",
-  "/business-laws.html",
-  "/chapters.html",
-  "/chatrooms.html",
-  "/confirmation.html",
-  "/contact.html",
-  "/correction-test.html",
-  "/profile.html",
-  "/sponsor-us.html",
-  "/temp-test.html",
-  "/thoughts.html",
+// static pages (optional)
+"/about-us.html",
+"/contact.html",
 
-  // CSS
-  "/style.css",
-  "/style-rtp.css",
-  "/assets/css/common.css",
-  "/assets/css/landing.css",
-  "/assets/css/about.css",
-  "/assets/css/chatroom.css",
-  "/assets/css/contact.css",
-  "/assets/css/perform.css",
-  "/assets/css/profile.css",
-  "/assets/css/sponsor.css",
-  "/assets/css/penalty.css",
-  "/assets/css/style-law.css",
-
-  // JS (core only)
-  "/assets/js/common.js",
-  "/assets/js/common-layout.js",
-  "/assets/js/common-logic.js",
-  "/assets/js/firebase.js",
-  "/assets/js/profile.js",
-  "/assets/js/settings.js",
-  "/assets/js/student-test.js",
-  "/assets/js/user-metrics-init.js",
-  "/assets/js/user-metrics-update.js",
-  "/assets/js/questions.js",
-  "/assets/js/questions-law.js",
-  "/assets/js/questions-logic.js",
-  "/assets/js/questions-logic-rtp.js",
-  "/assets/js/rtp-mtp.js",
-  "/assets/js/performance-logic.js",
-  "/assets/js/law-logic.js",
-  "/assets/js/law-pdf-logic.js",
-  "/assets/js/insight-engine.js",
-  "/assets/js/chatroom.js",
-  "/assets/js/bookmark-logic.js",
-  "/assets/js/contact.js",
-
-  // icons / images
-  "/assets/favicon/favicon.ico",
-  "/assets/favicon/apple-touch-icon.png",
-  "/assets/favicon/android-chrome-192x192.png",
-  "/assets/favicon/android-chrome-512x512.png",
-  "/assets/QR/qr.png"
+// icons / images only
+"/assets/favicon/favicon.ico",
+"/assets/favicon/apple-touch-icon.png",
+"/assets/favicon/android-chrome-192x192.png",
+"/assets/favicon/android-chrome-512x512.png",
+"/assets/QR/qr.png"
 ];
 
 /* =========================
