@@ -90,4 +90,21 @@ document.addEventListener("DOMContentLoaded", () => {
       <span>Send Message</span>
     `;
   });
+  /* ===== TOAST ===== */
+function showToast(text) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `
+    <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f4ec.svg">
+    <span>${text}</span>
+  `;
+
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add("show"), 50);
+
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, 2400);
+}
 });
