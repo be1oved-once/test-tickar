@@ -13,7 +13,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
+<!-- Mammoth.js for DOCX -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.27/mammoth.browser.min.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Icons -->
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -101,6 +107,21 @@
 <button id="leaderboardBtn" class="leaderboard-btn hidden">Leaderboard
   </button>
 </div>
+<!-- Upload Questions File Button -->
+<div class="upload-box">
+  <input type="file" id="questionFileInput" 
+         accept=".txt,.pdf,.doc,.docx"
+         hidden>
+
+  <button id="uploadQuestionBtn" class="upload-btn">
+    <i class="fa-solid fa-file-arrow-up"></i>
+    <span>Import PDF/TXT</span>
+  </button>
+
+  <div id="uploadFileName" class="upload-filename">
+    No file selected
+  </div>
+</div>
   <!-- ================= SUBJECT SELECT ================= -->
   <div class="card">
     <label class="label">Select Subject</label>
@@ -108,10 +129,10 @@
     <div class="subject-wrap">
       <button type="button" class="subject-btn" id="subjectBtn">
         <span id="subjectValue">Select Subject</span>
-        <i class="fa-solid fa-chevron-down"></i>
+        <i id="subjectArrow" class="fa-solid fa-chevron-down"></i>
       </button>
 
-      <div class="subject-popup hidden" id="subjectPopup">
+      <div class="subject-popup" id="subjectPopup">
         <div class="subject-item" data-subject="Economics">Economics</div>
         <div class="subject-item" data-subject="Maths">Maths (QA)</div>
       </div>
@@ -250,6 +271,15 @@
     <div id="leaderboardList" class="leaderboard-list"></div>
 
   </div>
+</div>
+<!-- ================= ADMIN LOGS ================= -->
+<div class="admin-logs">
+  <div class="logs-header">
+    <h3>System Logs</h3>
+    <button id="clearLogs" class="logs-clear">Clear</button>
+  </div>
+
+  <div id="logsContainer" class="logs-body"></div>
 </div>
 <script>
 document.addEventListener("DOMContentLoaded", () => {

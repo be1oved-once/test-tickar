@@ -19,97 +19,446 @@ import { Timestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-fi
 /* =========================
    FIREBASE TEMP TEST REF
 ========================= */
+const logsContainer = document.getElementById("logsContainer");
+const clearLogsBtn  = document.getElementById("clearLogs");
+const questionsContainer = document.getElementById("questionsContainer");
+let questionCount = 0;
+let questionMode = "mcq";      // "mcq" | "direct"
+let modeLocked = false; 
+function adminLog(message, type = "info") {
+  if (!logsContainer) return;
+  
+  const time = new Date().toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+  
+  const log = document.createElement("div");
+  log.className = `log-item ${type}`;
+  
+  const timeSpan = document.createElement("span");
+  timeSpan.textContent = `[${time}] `;
+  
+  const textSpan = document.createElement("span");
+  const cursor = document.createElement("span");
+  
+  cursor.className = "log-cursor";
+  cursor.textContent = "█";
+  
+  log.appendChild(timeSpan);
+  log.appendChild(textSpan);
+  log.appendChild(cursor);
+  logsContainer.prepend(log);
+  
+  let i = 0;
+  const speed = 40; // typing speed (ms)
+  
+  const typer = setInterval(() => {
+    textSpan.textContent += message[i];
+    i++;
+    
+    if (i >= message.length) {
+      clearInterval(typer);
+      cursor.remove(); // ✅ STOP BLINKING FOREVER
+    }
+  }, speed);
+}
+/* =========================
+   CONSOLE → ADMIN LOG BRIDGE
+========================= */
+function disablePublishMode() {
+  liveBtn?.classList.add("disabled");
+  scheduleBtn?.classList.add("disabled");
+
+  liveBtn && (liveBtn.style.pointerEvents = "none");
+  scheduleBtn && (scheduleBtn.style.pointerEvents = "none");
+}
+
+function enablePublishMode() {
+  liveBtn?.classList.remove("disabled");
+  scheduleBtn?.classList.remove("disabled");
+
+  liveBtn && (liveBtn.style.pointerEvents = "");
+  scheduleBtn && (scheduleBtn.style.pointerEvents = "");
+}
+
+(function hookConsole() {
+  const original = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error,
+    info: console.info
+  };
+
+  function stringify(args) {
+    return args.map(a => {
+      if (typeof a === "object") {
+        try {
+          return JSON.stringify(a, null, 2);
+        } catch {
+          return String(a);
+        }
+      }
+      return String(a);
+    }).join(" ");
+  }
+
+  console.log = (...args) => {
+    original.log(...args);
+    adminLog(stringify(args), "info");
+  };
+
+  console.info = (...args) => {
+    original.info(...args);
+    adminLog(stringify(args), "info");
+  };
+
+  console.warn = (...args) => {
+    original.warn(...args);
+    adminLog(stringify(args), "warn");
+  };
+
+  console.error = (...args) => {
+    original.error(...args);
+    adminLog(stringify(args), "danger");
+  };
+})();
+
+// Clear logs
+clearLogsBtn?.addEventListener("click", () => {
+  logsContainer.innerHTML = "";
+});
+let timerInterval = null;
+let adminPresenceInterval = null;
 
 let scheduleInterval = null;
 let scheduledTimeCache = null;
+let remainingSeconds = 0;
 
 const TEMP_TEST_REF = doc(db, "tempTests", "current");
-console.log("🟢 temp-test.js loaded");
-document.addEventListener("DOMContentLoaded", () => {
 
+function setupCorrectOption(block) {
+  const checks = block.querySelectorAll(".correct-check");
+
+  checks.forEach(check => {
+    check.addEventListener("change", () => {
+      checks.forEach(c => {
+        if (c !== check) c.checked = false;
+      });
+    });
+  });
+}
+
+/* =========================
+   AUTO HEIGHT GROW
+========================= */
+function setupAutoGrow(block) {
+  block.querySelectorAll("textarea").forEach(el => {
+    el.style.height = "auto";
+    el.addEventListener("input", () => {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    });
+  });
+}
+
+function toggleOptions(block, mode) {
+  const optionsWrap = block.querySelector(".options-wrap");
+  if (!optionsWrap) return;
+
+  if (mode === "direct") {
+    optionsWrap.classList.add("hidden");
+  } else {
+    optionsWrap.classList.remove("hidden");
+  }
+}
+
+function insertParsedQuestions(parsedQuestions) {
+  questionsContainer.innerHTML = "";
+  questionCount = 0;
+  modeLocked = true;
+
+  let hasMCQ = false;
+  let hasDirect = false;
+
+  parsedQuestions.forEach(q => {
+    questionCount++;
+
+    // ===== MCQ BLOCK =====
+    if (q.type === "mcq") {
+      hasMCQ = true;
+
+      const block = document.createElement("div");
+      block.className = "question-block";
+
+      block.innerHTML = `
+        <textarea
+          class="admin-textarea question-text"
+          placeholder="Question ${questionCount}">${q.question}</textarea>
+
+        <div class="options-wrap">
+          ${[0,1,2,3].map(i => `
+            <div class="option-row">
+              <input type="checkbox" class="correct-check"
+                ${q.correctIndex === i ? "checked" : ""}>
+              <input
+                type="text"
+                class="admin-input option-input"
+                placeholder="Option ${i+1}"
+                value="${q.options[i] || ""}">
+            </div>
+          `).join("")}
+        </div>
+
+        <button type="button" class="outline-btn delete-question">
+          Delete Question
+        </button>
+      `;
+
+      questionsContainer.appendChild(block);
+
+      setupCorrectOption(block);
+      setupAutoGrow(block);
+
+      block.querySelector(".delete-question")
+        .addEventListener("click", () => block.remove());
+    }
+
+
+    // ===== DIRECT BLOCK =====
+    if (q.type === "direct") {
+      hasDirect = true;
+
+      const block = document.createElement("div");
+      block.className = "question-block";
+
+      block.innerHTML = `
+        <textarea
+          class="admin-textarea question-text"
+          placeholder="Question ${questionCount}">${q.question}</textarea>
+
+        <button type="button" class="outline-btn delete-question">
+          Delete Question
+        </button>
+      `;
+
+      questionsContainer.appendChild(block);
+
+      setupAutoGrow(block);
+
+      block.querySelector(".delete-question")
+        .addEventListener("click", () => block.remove());
+    }
+
+  });
+
+  // 🔥 Set correct global mode UI
+  if (hasDirect && !hasMCQ) {
+    setQuestionMode("direct");
+  } 
+  else if (hasMCQ && !hasDirect) {
+    setQuestionMode("mcq");
+  } 
+  else {
+    // mixed file → default lock
+    setQuestionMode("mcq");
+  }
+
+  adminLog(`Inserted ${parsedQuestions.length} questions`);
+}
+function setQuestionMode(mode) {
+  questionMode = mode;
+
+  withOptionsBtn.classList.toggle("active", mode === "mcq");
+  withoutOptionsBtn.classList.toggle("active", mode === "direct");
+
+  // 🔁 Update ALL existing questions
+  document.querySelectorAll(".question-block").forEach(block => {
+    toggleOptions(block, mode);
+  });
+}
+document.addEventListener("DOMContentLoaded", () => {
+const uploadBtn = document.getElementById("uploadQuestionBtn");
+const fileInput = document.getElementById("questionFileInput");
+const fileNameLabel = document.getElementById("uploadFileName");
+
+uploadBtn.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", async () => {
+  if (!fileInput.files.length) return;
+
+  const file = fileInput.files[0];
+  fileNameLabel.textContent = file.name;
+
+  let textContent = "";
+
+  const ext = file.name.split(".").pop().toLowerCase();
+
+  if (ext === "txt") {
+    textContent = await file.text();
+  }
+
+  else if (ext === "docx") {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    textContent = result.value;
+  }
+
+  else if (ext === "pdf") {
+    textContent = await readPdfText(file);
+  }
+
+  else {
+    alert("Unsupported file type");
+    return;
+  }
+
+  console.log("RAW FILE TEXT:\n", textContent);
+
+  const questions = parseQuestionFormat(textContent);
+  console.log("PARSED QUESTIONS:", questions);
+insertParsedQuestions(questions);
+
+  // Later we will auto-insert into your question UI
+});
 /* =========================
    ADMIN-ONLINE SCHEDULER
 ========================= */
+function calculateRemainingSeconds(expiresAt) {
+  if (!expiresAt) return 0;
 
+  const now = Date.now();
+  const end = expiresAt.toDate().getTime();
+
+  return Math.max(Math.floor((end - now) / 1000), 0);
+}
 /* =========================
    ADMIN-ONLINE SCHEDULER (FIXED)
 ========================= */
-console.log("🟢 Attaching onSnapshot to TEMP_TEST_REF");
-onSnapshot(TEMP_TEST_REF, (snap) => {
-  if (!snap.exists()) return;
+console.log("Attaching onSnapshot to TEMP_TEST_REF");
 
-  const data = snap.data();
+let schedulerInterval = null;
 
-// 🔥 SHOW DATE + TIME (ADMIN)
-const scheduleEl = document.getElementById("scheduleInfo");
-const expiresEl  = document.getElementById("expiresInfo");
+onSnapshot(TEMP_TEST_REF, async (snap) => {
 
-if (scheduleEl) {
-  scheduleEl.textContent =
-    formatDateTime(data.schedule?.at);
-}
+  /* =========================
+     NO ACTIVE TEST
+  ========================= */
+  if (!snap.exists()) {
+    console.log("No active test");
 
-if (expiresEl) {
-  expiresEl.textContent =
-    formatDateTime(data.expiresAt);
-}
+    clearTestBtn && (clearTestBtn.disabled = true);
+    leaderboardBtn?.classList.remove("hidden");
 
-  console.log("Firestore data:", data);
-
-  if (data.publishMode !== "schedule") return;
-  if (data.status === "live") return;
-
-  const scheduledAt = data.schedule?.at;
-  if (!scheduledAt) return;
-
-  scheduledTimeCache = scheduledAt.toDate();
-
-  console.log("📅 Scheduled at:", formatDateTime(data.schedule?.at));
-
-  // ⛔ already running checker
-  if (scheduleInterval) return;
-
-  console.log("⏱ Starting admin-side scheduler loop");
-
-  scheduleInterval = setInterval(async () => {
-    const now = new Date();
-    console.log("Now:", now.toISOString());
-
-    if (now < scheduledTimeCache) {
-      console.log("⌛ Waiting for scheduled time...");
-      return;
+    // stop all timers safely
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
     }
 
-    console.log("🚀 TIME REACHED → GOING LIVE");
+    if (schedulerInterval) {
+      clearInterval(schedulerInterval);
+      schedulerInterval = null;
+    }
 
-    clearInterval(scheduleInterval);
-    scheduleInterval = null;
+    remainingSeconds = 0;
+    timerDisplay && (timerDisplay.textContent = "00:00");
+    liveTimerText && (liveTimerText.textContent = "00:00");
+    liveTimerBar?.classList.add("hidden");
 
-    await updateDoc(TEMP_TEST_REF, {
-  status: "live",
-  publishMode: "live",
-  "timer.startedAt": serverTimestamp(),
-  adminLastSeen: serverTimestamp()
+enablePublishMode();
+    return;
+  }
+
+  /* =========================
+     TEST EXISTS
+  ========================= */
+  const data = snap.data();
+disablePublishMode();
+  console.log(
+    "Test:",
+    data.status,
+    "| Questions:",
+    data.questions?.length || 0
+  );
+
+  clearTestBtn && (clearTestBtn.disabled = false);
+
+  /* =========================
+     DISPLAY INFO
+  ========================= */
+  scheduleInfo && (scheduleInfo.textContent =
+    formatDateTime(data.schedule?.at));
+
+  expiresInfo && (expiresInfo.textContent =
+    formatDateTime(data.expiresAt));
+
+  /* =========================
+     🔥 LIVE TIMER SYNC (FIX)
+  ========================= */
+  if (data.status === "live" && data.expiresAt) {
+
+    const now = Date.now();
+    const end = data.expiresAt.toDate().getTime();
+
+    remainingSeconds = Math.max(
+      Math.floor((end - now) / 1000),
+      0
+    );
+
+    // show timer UI
+    liveTimerBar?.classList.remove("hidden");
+
+    // update text immediately
+    updateTimerDisplay();
+
+    // restart interval ONLY if not running
+    if (!timerInterval && remainingSeconds > 0) {
+      startTimer();
+    }
+
+    // if time already over
+    if (remainingSeconds <= 0) {
+      timerDisplay.textContent = "TIME UP";
+      liveTimerText.textContent = "TIME UP";
+    }
+  }
+
+  /* =========================
+     ⏰ SCHEDULE → LIVE HANDLER
+  ========================= */
+  if (
+    data.publishMode === "schedule" &&
+    data.status !== "live" &&
+    data.schedule?.at
+  ) {
+    const scheduledTime = data.schedule.at.toDate();
+
+    if (!schedulerInterval) {
+      console.log("Scheduler armed");
+
+      schedulerInterval = setInterval(async () => {
+        if (Date.now() < scheduledTime.getTime()) return;
+
+        console.log("TIME REACHED → GOING LIVE");
+
+        clearInterval(schedulerInterval);
+        schedulerInterval = null;
+
+        await updateDoc(TEMP_TEST_REF, {
+          status: "live",
+          publishMode: "live",
+          "timer.startedAt": serverTimestamp(),
+          adminLastSeen: serverTimestamp()
+        });
+
+        openTimerPage();
+      }, 1000);
+    }
+  }
+
 });
-
-startAdminHeartbeat();
-openTimerPage();
-
-    console.log("✅ Scheduled test is now LIVE");
-
-  }, 1000);
-});
-let heartbeatInterval = null;
-
-function startAdminHeartbeat() {
-  if (heartbeatInterval) return;
-
-  heartbeatInterval = setInterval(() => {
-    updateDoc(TEMP_TEST_REF, {
-      adminLastSeen: serverTimestamp()
-    }).catch(() => {});
-  }, 5000);
-}
 /* =========================
    SUBJECT DROPDOWN
 ========================= */
@@ -126,36 +475,45 @@ if (clearTestBtn) {
   clearTestBtn.disabled = true;
 }
 
+const subjectArrow = document.getElementById("subjectArrow");
 
-subjectBtn.addEventListener("click", () => {
-  subjectPopup.classList.toggle("hidden");
-});
+subjectBtn.addEventListener("click", e => {
+    e.stopPropagation();
 
-subjectPopup.querySelectorAll(".subject-item").forEach(item => {
-  item.addEventListener("click", () => {
-    subjectValue.textContent = item.dataset.subject;
-    subjectPopup.classList.add("hidden");
+    const isOpen = subjectPopup.classList.toggle("show");
+    subjectArrow.classList.toggle("open", isOpen);
   });
-});
 
-document.addEventListener("click", e => {
-  if (!subjectBtn.contains(e.target) && !subjectPopup.contains(e.target)) {
-    subjectPopup.classList.add("hidden");
-  }
-});
+  /* ITEM CLICK */
+  subjectPopup.querySelectorAll(".subject-item").forEach(item => {
+    item.addEventListener("click", () => {
+      subjectValue.textContent = item.dataset.subject;
+
+      subjectPopup.classList.remove("show");
+      subjectArrow.classList.remove("open");
+    });
+  });
+
+  /* OUTSIDE CLICK */
+  document.addEventListener("click", e => {
+    if (
+      !subjectBtn.contains(e.target) &&
+      !subjectPopup.contains(e.target)
+    ) {
+      subjectPopup.classList.remove("show");
+      subjectArrow.classList.remove("open");
+    }
+  });
 
 /* =========================
    QUESTIONS
 ========================= */
 const addQuestionBtn = document.getElementById("addQuestionBtn");
-const questionsContainer = document.getElementById("questionsContainer");
 
-let questionCount = 0;
-let questionMode = "mcq";      // "mcq" | "direct"
-let modeLocked = false;  // 🔒 once first question added
+ // 🔒 once first question added
 let testDuration = null; // in minutes
 let timerSeconds = 0;
-let timerInterval = null;
+
 
 addQuestionBtn?.addEventListener("click", () => {
   addQuestionBlock();
@@ -205,17 +563,11 @@ if (!modeLocked) {
 
   // ✅ APPLY GLOBAL MODE SAFELY
   toggleOptions(block, questionMode);
+  
+  const questionInput = block.querySelector(".question-text");
+if (questionInput) {
+  questionInput.focus();
 }
-
-function toggleOptions(block, mode) {
-  const optionsWrap = block.querySelector(".options-wrap");
-  if (!optionsWrap) return;
-
-  if (mode === "direct") {
-    optionsWrap.classList.add("hidden");
-  } else {
-    optionsWrap.classList.remove("hidden");
-  }
 }
 /* =========================
    SINGLE CORRECT OPTION
@@ -268,30 +620,7 @@ function setupQuestionTypeToggle(block) {
     });
   });
 }
-function setupCorrectOption(block) {
-  const checks = block.querySelectorAll(".correct-check");
 
-  checks.forEach(check => {
-    check.addEventListener("change", () => {
-      checks.forEach(c => {
-        if (c !== check) c.checked = false;
-      });
-    });
-  });
-}
-
-/* =========================
-   AUTO HEIGHT GROW
-========================= */
-function setupAutoGrow(block) {
-  block.querySelectorAll("textarea").forEach(el => {
-    el.style.height = "auto";
-    el.addEventListener("input", () => {
-      el.style.height = "auto";
-      el.style.height = el.scrollHeight + "px";
-    });
-  });
-}
 
 /* =========================
    PUBLISH MODE
@@ -315,33 +644,31 @@ scheduleBtn.addEventListener("click", () => {
 /* =========================
    PUBLISH (DATA READY)
 ========================= */
-async function clearAllOldSubmissions() {
+async function cleanupAllTestSubmissions() {
   try {
-    console.log("🧹 Clearing old test submissions...");
-
     const usersSnap = await getDocs(collection(db, "users"));
-
-    for (const userDoc of usersSnap.docs) {
+    
+    for (const user of usersSnap.docs) {
       const subsSnap = await getDocs(
-        collection(db, "users", userDoc.id, "testSubmissions")
+        collection(db, "users", user.id, "testSubmissions")
       );
-
+      
       for (const sub of subsSnap.docs) {
         await deleteDoc(sub.ref);
       }
     }
-
-    console.log("✅ Old submissions cleared");
-
-  } catch (err) {
-    console.error("❌ Cleanup failed:", err);
+    
+    adminLog("Firebase test submissions cleaned");
+    
+  } catch (e) {
+    console.error("Cleanup error:", e);
   }
 }
 
 const publishBtn = document.getElementById("publishBtn");
 
 publishBtn.addEventListener("click", async () => {
-  await clearAllOldSubmissions();
+  await cleanupAllTestSubmissions();
   if (!validateQuestions()) return;
   const payload = collectData();
   const mins = parseInt(timerInput.value);
@@ -424,7 +751,6 @@ await setDoc(TEMP_TEST_REF, firebasePayload, { merge: true });
     adminLastSeen: serverTimestamp()
   });
 
-  startAdminHeartbeat();
   openTimerPage();
 }
 else {
@@ -490,18 +816,6 @@ withoutOptionsBtn.addEventListener("click", () => {
   if (modeLocked) return;          // ⛔ block after first question
   setQuestionMode("direct");
 });
-
-function setQuestionMode(mode) {
-  questionMode = mode;
-
-  withOptionsBtn.classList.toggle("active", mode === "mcq");
-  withoutOptionsBtn.classList.toggle("active", mode === "direct");
-
-  // 🔁 Update ALL existing questions
-  document.querySelectorAll(".question-block").forEach(block => {
-    toggleOptions(block, mode);
-  });
-}
 /* =========================
    SCHEDULE DATE & TIME RULES (SAFE)
 ========================= */
@@ -594,9 +908,6 @@ const closeTimer = document.getElementById("closeTimer");
 const liveTimerBar = document.getElementById("liveTimerBar");
 const liveTimerText = document.getElementById("liveTimerText");
 
-
-let remainingSeconds = 0;
-
 function lockQuestionEditing() {
   // Remove add button
   addQuestionBtn?.remove();
@@ -612,6 +923,7 @@ function freezePublishButton() {
 }
 
 function openTimerPage() {
+  startAdminPresenceCheck();
   const mins = parseInt(timerInput.value);
 
   if (!mins || mins < 1 || mins > 60) {
@@ -633,29 +945,33 @@ clearTestBtn.disabled = false;
 
   timerPage.classList.remove("hidden");
   startTimer();
+  
 }
 
 async function startTimer() {
-  clearInterval(timerInterval);
+  if (timerInterval) return; // ⛔ prevent double intervals
 
   updateTimerDisplay();
 
-timerInterval = setInterval(async () => {
-  remainingSeconds--;
-  updateTimerDisplay();
+  timerInterval = setInterval(async () => {
+    remainingSeconds--;
+    updateTimerDisplay();
 
-  if (remainingSeconds <= 0) {
-    clearInterval(timerInterval);
-    timerDisplay.textContent = "TIME UP";
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
 
-    try {
-      await deleteDoc(TEMP_TEST_REF);
-      console.log("🔥 Test auto-ended (TIME UP)");
-    } catch (e) {
-      console.error(e);
+      timerDisplay.textContent = "TIME UP";
+      liveTimerText.textContent = "TIME UP";
+
+      try {
+        await deleteDoc(TEMP_TEST_REF);
+        adminLog("Test auto-ended (TIME UP)", "warn");
+      } catch (e) {
+        console.error(e);
+      }
     }
-  }
-}, 1000);
+  }, 1000);
 }
 
 function updateTimerDisplay() {
@@ -676,34 +992,69 @@ closeTimer.addEventListener("click", () => {
   liveTimerBar.classList.remove("hidden");
 });
 
+async function forceClearTest(reason = "Admin offline") {
+  clearInterval(adminPresenceInterval);
+adminPresenceInterval = null;
+  console.warn("🔥 Force clearing test:", reason);
 
-clearTestBtn?.addEventListener("click", () => {
-  showConfirmToast(
-    "Clear entire test setup?",
-    async () => {
-      // ⛔ Stop timer
-      clearInterval(timerInterval);
+  // Stop timers
+  clearInterval(timerInterval);
+  timerInterval = null;
+  remainingSeconds = 0;
 
-      // 🔄 Reset state
-      questionCount = 0;
-      questionMode = "mcq";
-      modeLocked = false;
-      testDuration = null;
-      remainingSeconds = 0;
+  // Reset timer UI
+  if (timerDisplay) timerDisplay.textContent = "00:00";
+  if (liveTimerText) liveTimerText.textContent = "00:00";
 
-      // 🧹 Clear UI
-      questionsContainer.innerHTML = "";
-      subjectValue.textContent = "Select Subject";
-      document.getElementById("pageText").value = "";
-      timerInput.value = "";
+  // Hide overlays
+  timerPage?.classList.add("hidden");
+  liveTimerBar?.classList.add("hidden");
+  document.body.style.overflow = "";
 
-      // 🔓 Restore scrolling
-      document.body.style.overflow = "";
+  // Disable clear button
+  clearTestBtn.disabled = true;
 
-      // ♻️ Full reset (safe)
-      location.reload();
-    }
-  );
+  // Delete Firebase test
+  try {
+    await deleteDoc(TEMP_TEST_REF);
+    console.log("Test deleted from Firebase");
+  } catch (e) {
+    console.error("Failed to delete test", e);
+  }
+
+  // Stop presence checker
+  clearInterval(adminPresenceInterval);
+  adminPresenceInterval = null;
+}
+
+clearTestBtn.addEventListener("click", e => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  showConfirmToast("Clear entire test setup?", async () => {
+
+    // 1️⃣ Stop timers
+    clearInterval(timerInterval);
+    timerInterval = null;
+
+    // 2️⃣ Reset timer UI
+    remainingSeconds = 0;
+    timerDisplay.textContent = "00:00";
+    liveTimerText.textContent = "00:00";
+
+    // 3️⃣ Hide timer pages
+    timerPage.classList.add("hidden");
+    liveTimerBar.classList.add("hidden");
+    document.body.style.overflow = "";
+
+    // 4️⃣ DELETE FIREBASE TEST (THIS WAS MISSING)
+    await deleteDoc(TEMP_TEST_REF);
+
+    console.log("Temp test fully deleted");
+
+    // 5️⃣ Disable clear button
+    clearTestBtn.disabled = true;
+  });
 });
 
 const confirmToast = document.getElementById("confirmToast");
@@ -740,12 +1091,6 @@ confirmYes.onclick = () => {
 
 const leaderboardBtn = document.getElementById("leaderboardBtn");
 
-onSnapshot(TEMP_TEST_REF, snap => {
-  if (!snap.exists()) {
-    // 🏁 Test finished
-    leaderboardBtn.classList.remove("hidden");
-  }
-});
 
 const leaderboardOverlay = document.getElementById("leaderboardOverlay");
 const leaderboardList = document.getElementById("leaderboardList");
@@ -784,21 +1129,36 @@ function renderLeaderboard(list) {
           const status = a.isCorrect ? "✅ Correct" : "❌ Wrong";
 
           return `
-            <div class="lb-answer">
-              <b>Q${idx + 1}:</b> ${a.question}<br>
-              ${status}<br>
-              Selected: Option ${a.selectedIndex + 1},
-              Correct: Option ${a.correctIndex + 1}
-            </div>
+            <div class="lb-answer-card ${a.isCorrect ? "correct" : "wrong"}">
+  <div class="lb-q">
+    <span class="lb-q-no">Q${idx + 1}</span>
+    <span class="lb-q-text">${a.question}</span>
+  </div>
+
+  <div class="lb-meta">
+    <span class="lb-badge ${a.isCorrect ? "ok" : "bad"}">
+      ${a.isCorrect ? "Correct" : "Wrong"}
+    </span>
+    <span class="lb-opt">
+      Your: ${a.selectedIndex + 1} • Correct: ${a.correctIndex + 1}
+    </span>
+  </div>
+</div>
           `;
         }
 
         // ✅ DIRECT → ONLY ANSWER TEXT (NO WRONG/RIGHT)
         return `
-          <div class="lb-answer">
-            <b>Q${idx + 1}:</b> ${a.question}<br>
-            📝 <i>${a.answerText || "—"}</i>
-          </div>
+          <div class="lb-answer-card direct">
+  <div class="lb-q">
+    <span class="lb-q-no">Q${idx + 1}</span>
+    <span class="lb-q-text">${a.question}</span>
+  </div>
+
+  <div class="lb-direct-answer">
+    ${a.answerText || "No answer submitted"}
+  </div>
+</div>
         `;
       })
       .join("");
@@ -813,8 +1173,7 @@ function renderLeaderboard(list) {
       </div>
 
       <div class="lb-expand">
-        <div class="lb-stat">📊 Attempts: <b>${u.total}</b></div>
-        <hr>
+        <div class="lb-stat">Attempts: <b><span class="lb-stat-value">${u.total}</span></b></div>
         ${answersHTML}
       </div>
     `;
@@ -859,9 +1218,168 @@ function formatDateTime(ts) {
     hour12: true
   });
 }
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    clearInterval(heartbeatInterval);
-    heartbeatInterval = null;
+async function clearTestCore(reason = "manual") {
+  console.warn("Clearing test -", reason);
+
+  // stop timers
+  clearInterval(timerInterval);
+  remainingSeconds = 0;
+
+  // reset timer UI
+  if (timerDisplay) timerDisplay.textContent = "00:00";
+  if (liveTimerText) liveTimerText.textContent = "00:00";
+
+  timerPage?.classList.add("hidden");
+  liveTimerBar?.classList.add("hidden");
+  document.body.style.overflow = "";
+
+  // disable clear button
+  clearTestBtn.disabled = true;
+
+  // stop admin presence checker
+  clearInterval(adminPresenceInterval);
+  adminPresenceInterval = null;
+
+  // 🔥 delete firebase test
+  try {
+    await deleteDoc(TEMP_TEST_REF);
+    console.log("Test removed from Firebase");
+  } catch (e) {
+    console.error("❌ Firebase delete failed", e);
   }
-});
+}
+
+function forceClearTest(reason = "admin inactive") {
+  clearTestCore(reason);
+}
+
+function startAdminPresenceCheck() {
+  if (adminPresenceInterval) return;
+
+  adminPresenceInterval = setInterval(() => {
+    const pageVisible = document.visibilityState === "visible";
+    const pageFocused = document.hasFocus();
+    const online = navigator.onLine;
+
+    if (!pageVisible || !pageFocused || !online) {
+      forceClearTest("Admin not active / offline");
+    }
+  }, 30000); // ✅ 15 seconds
+}
+// ===== File Upload Parsing System =====
+
+function parseQuestionFormat(raw) {
+  // 🔥 FIX FOR PDF FLATTENED TEXT
+raw = raw
+  .replace(/\s+Q:/g, "\nQ:")
+  .replace(/\s+A:/g, "\nA:")
+  .replace(/\s+B:/g, "\nB:")
+  .replace(/\s+C:/g, "\nC:")
+  .replace(/\s+D:/g, "\nD:")
+  .replace(/\s+ANSWER:/g, "\nANSWER:");
+  const lines = raw.split("\n");
+  const questions = [];
+
+  let current = {
+    question: "",
+    options: [],
+    correctIndex: null,
+    type: "direct" // 🔥 default direct
+  };
+
+  let mode = null;
+  let waitingForAnswerLetter = false;
+
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+
+    // Q:
+    if (line === "Q:" || line.startsWith("Q:")) {
+      if (current.question) {
+        // decide type before pushing
+        current.type = current.options.length ? "mcq" : "direct";
+        questions.push(current);
+        current = {
+          question: "",
+          options: [],
+          correctIndex: null,
+          type: "direct"
+        };
+      }
+
+      mode = "question";
+      waitingForAnswerLetter = false;
+
+      const qText = line.replace("Q:", "").trim();
+      if (qText) current.question += qText;
+      continue;
+    }
+
+    // A:, B:, C:, D:  → MCQ option
+    if (/^[A-D]:/.test(line)) {
+      mode = "option";
+      waitingForAnswerLetter = false;
+
+      const optText = line.replace(/^[A-D]:/, "").trim();
+      current.options.push(optText || "");
+      continue;
+    }
+
+    // ANSWER:
+    if (line.startsWith("ANSWER:")) {
+      const ansInline = line.replace("ANSWER:", "").trim();
+
+      if (ansInline) {
+        current.correctIndex = ansInline.charCodeAt(0) - 65;
+        waitingForAnswerLetter = false;
+      } else {
+        waitingForAnswerLetter = true;
+      }
+      mode = null;
+      continue;
+    }
+
+    // ANSWER letter on next line
+    if (waitingForAnswerLetter && /^[A-D]$/.test(line)) {
+      current.correctIndex = line.charCodeAt(0) - 65;
+      waitingForAnswerLetter = false;
+      continue;
+    }
+
+    // Continuation
+    if (mode === "question") {
+      current.question += (current.question ? " " : "") + line;
+    } 
+    else if (mode === "option") {
+      const last = current.options.length - 1;
+      current.options[last] +=
+        (current.options[last] ? " " : "") + line;
+    }
+  }
+
+  // Push last question
+  if (current.question) {
+    current.type = current.options.length ? "mcq" : "direct";
+    questions.push(current);
+  }
+
+  return questions;
+}
+
+// ===== PDF READER =====
+async function readPdfText(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let text = "";
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const strings = content.items.map(it => it.str);
+    text += strings.join(" ") + "\n";
+  }
+
+  return text;
+}

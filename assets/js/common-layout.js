@@ -2,9 +2,11 @@
 
   const layoutHTML = `
   <header class="top-header">
-<div class="logo"><a href="index.html">
-  <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span></a>
+<a href="/index.html" class="brand-link">
+<div class="brand-logo bordered-logo">>
+  <span class="footer-before"><span class="before-text">Before</span><span class="before-underline"></span></span><span class="brand-x">x</span><span class="brand-am">am</span>
 </div>
+</a>
     <nav class="top-nav">
       <a href="/index.html" class="desk-nav-item">Home</a>
       <a href="/mtp-rtp.html">RTP/MTP</a>
@@ -52,6 +54,7 @@
 <div class="mobile-header-actions">
   <button class="icon-btn" id="notifyBtnMobile" title="Notifications">
     <i class="fa-regular fa-bell"></i>
+<span class="notify-dot"></span>
   </button>
 
   <button id="menuBtn" class="menu-btn" aria-label="Menu">
@@ -117,6 +120,7 @@
   <div class="admin-menu" id="adminMenu">
     <a href="/admin/push-noti.html">Push Notifications</a>
     <a href="/admin/test-setup.html">Temp Test</a>
+    <a href="/admin/manage/management.html">Manage Users</a>
   </div>
 </li>
   <li class="mobile-left">
@@ -144,7 +148,12 @@
       <span>Take a Correction Test</span>
     </a>
   </li>
-
+<li class="mobile-left">
+  <a href="/leaderboard.html">
+    <i class="fa-solid fa-trophy"></i>
+    <span>Leaderboard</span>
+  </a>
+</li>
   <li class="mobile-left">
     <a href="/articles.html">
       <i class="fa-solid fa-newspaper"></i>
@@ -190,7 +199,9 @@
   <!-- ===== Right Sidebar ===== -->
   <aside id="rightSidebar" class="right-sidebar">
 <div class="sidebar-header">
-  <span class="menu-main">TIC</span><span class="menu-dot">.</span><span class="menu-sub">Menu</span>
+<span class="menu-main">Explore</span>
+<span class="menu-dot">•</span>
+<span class="menu-sub">Menu</span>
 
 </div>
     <hr class="sidebar-hr" />
@@ -325,7 +336,9 @@
     <input type="password" id="loginPassword" placeholder="Password" required>
     <i class="fa-solid fa-eye toggle-pass"></i>
   </div>
-
+  <p class="forgot-pass">
+  <a href="/reset-password.html">Forgot password?</a>
+</p>
   <p class="auth-error" id="loginError"></p>
 
   <button type="submit" class="primary-btn">Login</button>
@@ -361,12 +374,7 @@
   />
   <p class="auth-error" id="otpError"></p>
 </div> ----->
-<div
-  class="cf-turnstile"
-  data-sitekey="0x4AAAAAACJINcs7IR4NRhGI"
-  data-theme="auto"
-  data-callback="onSignupTurnstile"
-></div>
+
   <p class="auth-error" id="signupError"></p>
 
   <button type="submit" class="primary-btn">Sign Up</button>
@@ -384,11 +392,13 @@
   <div class="footer-inner">
 
     <div class="footer-brand">
-      <div class="footer-logo">
-        <span class="logo-main">TIC</span><span class="logo-dot">.</span><span class="logo-sub">Kar</span>
-      </div>
+<a href="/index.html" class="brand-link">
+<div class="brand-logo bordered-logo">>
+<span class="footer-before"><span class="before-text">Before</span><span class="before-underline"></span></span><span class="brand-x">x</span><span class="brand-am">am</span>
+</div>
+</a>
       <p class="footer-tagline">
-        Built for focused practice, fair testing, and real improvement.
+Built for serious exam practice, smart evaluation, and real results.
       </p>
     </div>
 
@@ -426,7 +436,7 @@
   </div>
 
   <div class="footer-bottom">
-    © 2025 TIC.Kar · All rights reserved
+    © 2025 Beforexam · All rights reserved
   </div>
 </footer>
   `;
@@ -451,7 +461,7 @@ window.addEventListener("DOMContentLoaded", () => {
         <div class="pwa-icon">⚡</div>
 
         <div class="pwa-text">
-          <strong>Install TIC.Kar</strong>
+          <strong>Install Beforexam</strong>
           <span>Faster access • Works offline</span>
         </div>
 
