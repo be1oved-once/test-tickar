@@ -72,8 +72,12 @@ auth.onAuthStateChanged(async user => {
     return;
   }
 
+  // 🔥 Force refresh user state from Firebase
+  await user.reload();
+  user = auth.currentUser;
+
+  // Now check verification
   if (!user.emailVerified) {
-    await auth.signOut();
     window.location.href = "/signup-verified.html";
     return;
   }
