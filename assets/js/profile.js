@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { doc, getDoc, updateDoc } from
+import { doc, getDoc, setDoc, updateDoc } from
   "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 /* Elements */
@@ -68,6 +68,19 @@ function saveProfileToLocal(uid, data) {
 
 auth.onAuthStateChanged(async user => {
   if (!user) {
+    window.location.href = "/index.html#login";
+    return;
+  }
+
+  if (!user.emailVerified) {
+    await auth.signOut();
+    window.location.href = "/signup-verified.html";
+    return;
+  }
+
+  // ✅ Only verified users reach here
+  
+  if (!user) {
     // Clear UI
     usernameEl.value = "";
     dobEl.value = "";
@@ -106,6 +119,9 @@ auth.onAuthStateChanged(async user => {
     dob: data.dob || "",
     gender: data.gender || ""
   });
+  // ===== Hide skeleton, show real content =====
+document.getElementById("profileSkeleton").style.display = "none";
+document.getElementById("profileContent").style.display = "block";
 });
 
 /* Edit mode */
@@ -140,7 +156,15 @@ saveBtn.onclick = async () => {
   profileCompleted: true
 };
 
+// Update main user profile
 await updateDoc(doc(db, "users", user.uid), payload);
+
+// 🔥 ALSO update public leaderboard profile data
+await setDoc(doc(db, "publicLeaderboard", user.uid), {
+  name: payload.username,
+  dob: payload.dob,
+  gender: payload.gender
+}, { merge: true });
 
 /* 🔥 Sync localStorage instantly */
 saveProfileToLocal(user.uid, payload);

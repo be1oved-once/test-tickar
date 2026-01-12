@@ -1,10 +1,5 @@
 
-
-/* =========================
-   FIREBASE IMPORTS
-========================= */
 import { db } from "/assets/js/firebase.js";
-
 import {
   collection,
   addDoc,
@@ -30,11 +25,26 @@ const toastBackdrop = document.getElementById("toastBackdrop");
 
 let confirmAction = null;
 
-function showConfirmToast(message, action) {
+function showConfirmToast(message, action, options = {}) {
   confirmText.textContent = message;
   confirmAction = action;
+
+  confirmCancel.textContent = options.cancelText || "Cancel";
+  confirmYes.textContent = options.okText || "Delete";
+
   confirmToast.classList.add("show");
   toastBackdrop.classList.add("show");
+
+  confirmCancel.onclick = () => {
+    hideConfirmToast();
+    if (options.onCancel) options.onCancel();
+  };
+
+  confirmYes.onclick = async () => {
+  if (confirmAction) await confirmAction();  // run first
+  hideConfirmToast();                         // then clear
+  if (options.onOk) options.onOk();
+};
 }
 
 function hideConfirmToast() {
@@ -42,13 +52,18 @@ function hideConfirmToast() {
   toastBackdrop.classList.remove("show");
   confirmAction = null;
 }
-
-confirmCancel.onclick = hideConfirmToast;
-
-confirmYes.onclick = async () => {
-  if (confirmAction) await confirmAction();
-  hideConfirmToast();
-};
+function requireLoginToast() {
+  showConfirmToast(
+    "Login required to continue",
+    null,
+    {
+      cancelText: "Login",
+      okText: "Sign Up",
+      onCancel: () => openAuth("login"),
+      onOk: () => openAuth("signup")
+    }
+  );
+}
 /* ==========================================================
    DOM READY
 ========================================================== */
@@ -66,7 +81,8 @@ const ThoughtApp = {
      CONFIG
   ========================= */
   HIDE_KEY: "hidden_opinions_local",
-
+CACHE_KEY: "opinions_cache_v1",
+firstLoadDone: false,
   /* =========================
      INIT
   ========================= */
@@ -308,8 +324,7 @@ async publishOpinion() {
   // 🔒 Require login
   const user = window.currentUser;
   if (!user) {
-    alert("Login required to post opinion.");
-    openAuth("login");
+    requireLoginToast();
     return;
   }
 
@@ -366,26 +381,86 @@ canDeleteOpinion(data) {
   /* =========================
      REALTIME LOAD FEED
   ========================= */
-  loadOpinionsRealtime() {
-    const q = query(
-      collection(db, "opinions"),
-      orderBy("createdAt", "desc")
-    );
+loadOpinionsRealtime() {
 
-    onSnapshot(q, (snapshot) => {
-      this.feed.innerHTML = "";
+  this.pageSize = 10;
+  this.currentPage = 1;
+  this.cachedDocs = [];
 
-      const hidden = this.getHiddenOpinions();
+  const baseQuery = query(
+    collection(db, "opinions"),
+    orderBy("createdAt", "desc")
+  );
 
-      snapshot.forEach((docSnap) => {
-        if (hidden.includes(docSnap.id)) return;
+  // Realtime cache listener
+  onSnapshot(baseQuery, (snapshot) => {
+  this.cachedDocs = snapshot.docs;
+  
+  // Keep current page if already loaded
+  const page = this.firstLoadDone ? this.currentPage : 1;
+  
+  this.renderPage(page);
+  this.buildPagination();
+});
+},
+renderPage(page) {
+  this.currentPage = page;
 
-        const data = docSnap.data();
-        const card = this.createOpinionCard(docSnap.id, data);
-        this.feed.appendChild(card);
-      });
-    });
-  },
+  const start = (page - 1) * this.pageSize;
+  const end = start + this.pageSize;
+  const pageDocs = this.cachedDocs.slice(start, end);
+
+  // Skeleton ON
+// Skeleton only on first load or manual page change
+if (!this.firstLoadDone) {
+  document.getElementById("skeletonLoader").style.display = "block";
+  this.feed.style.display = "none";
+}
+
+setTimeout(() => {
+
+  document.getElementById("skeletonLoader").style.display = "none";
+  this.feed.style.display = "block";
+
+  this.feed.innerHTML = "";
+  const hidden = this.getHiddenOpinions();
+
+  pageDocs.forEach(docSnap => {
+    if (hidden.includes(docSnap.id)) return;
+    const data = docSnap.data();
+    const card = this.createOpinionCard(docSnap.id, data);
+    this.feed.appendChild(card);
+  });
+
+  // 🔥 Mark first load finished
+  this.firstLoadDone = true;
+
+}, this.firstLoadDone ? 0 : 200);
+},
+buildPagination() {
+  const total = this.cachedDocs.length;
+  const pages = Math.ceil(total / this.pageSize);
+
+  const wrap = document.getElementById("pagination");
+  wrap.innerHTML = "";
+
+  for (let i = 1; i <= pages; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+
+    if (i === this.currentPage) {
+      btn.classList.add("active");
+    }
+
+    btn.onclick = () => {
+      this.renderPage(i);
+      this.buildPagination();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    wrap.appendChild(btn);
+  }
+},
 
   /* =========================
      CREATE OPINION CARD*/
@@ -514,22 +589,33 @@ formatMessage(message) {
     const deleteBtn = card.querySelector(".delete-btn");
 
 if (deleteBtn) {
-deleteBtn.addEventListener("click", () => {
-  menuPopup.classList.remove("show");
+  deleteBtn.addEventListener("click", () => {
+    console.log("🟡 Delete button clicked for ID:", id);
 
-  showConfirmToast(
-    "Delete this opinion permanently?",
-    async () => {
-      try {
-        await deleteDoc(doc(db, "opinions", id));
-        card.remove();
-      } catch (err) {
-        console.error("Delete Error:", err);
-        alert("Failed to delete opinion.");
+    menuPopup.classList.remove("show");
+
+    showConfirmToast(
+      "Delete this opinion permanently?",
+      async () => {
+        console.log("🟠 Confirm delete pressed for ID:", id);
+
+        try {
+          const ref = doc(db, "opinions", id);
+          console.log("🔵 Firestore ref:", ref.path);
+
+          await deleteDoc(ref);
+
+          console.log("✅ Firestore delete successful:", id);
+
+          card.remove();
+          console.log("✅ Card removed from DOM");
+
+        } catch (err) {
+          console.error("❌ Delete Error:", err);
+        }
       }
-    }
-  );
-});
+    );
+  });
 }
     /* Menu toggle */
     menuBtn.addEventListener("click", (e) => {
@@ -582,7 +668,7 @@ async handleVote(id, type) {
   // 🔒 Require login
   const user = window.currentUser;
   if (!user) {
-    alert("Login required to vote.");
+    requireLoginToast();
     openAuth("login"); // uses your existing auth popup
     return;
   }
@@ -653,12 +739,3 @@ async handleVote(id, type) {
     }
   }
 };
-
-
-/* ==========================================================
-   END OF FILE
-   Fully optimized
-   No illegal returns
-   DOM safe
-   Firebase connected
-========================================================== */

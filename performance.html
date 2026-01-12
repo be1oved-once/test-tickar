@@ -4,7 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Performance</title>
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Beforexam",
+    "url": "https://beforexam.vercel.app"
+  }
+</script>
 
+<!-- Organization Schema -->
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Beforexam",
+    "url": "https://beforexam.vercel.app",
+    "logo": "https://beforexam.vercel.app/assets/favicon/android-chrome-512x512.png"
+  }
+</script>
   <link rel="stylesheet" href="assets/css/common.css">
   <link rel="stylesheet" href="assets/css/perform.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,7 +49,32 @@
 
   <!-- PAGE CONTENT ONLY -->
 <main class="perform-content">
+<!-- ===== PERFORMANCE SKELETON LOADER ===== -->
+<div id="performanceSkeleton">
 
+  <!-- Header skeleton -->
+  <div class="ps-header"></div>
+
+  <!-- Stat cards skeleton -->
+  <div class="ps-stats">
+    <div class="ps-stat-card"></div>
+    <div class="ps-stat-card"></div>
+    <div class="ps-stat-card"></div>
+    <div class="ps-stat-card"></div>
+  </div>
+
+  <!-- Chart skeleton -->
+  <div class="ps-chart-card"></div>
+
+  <!-- Practice overview skeleton -->
+  <div class="ps-practice">
+    <div class="ps-practice-card"></div>
+    <div class="ps-practice-card"></div>
+    <div class="ps-practice-card"></div>
+  </div>
+
+</div>
+<div id="performanceContent" style="display:none;">
   <!-- HEADER -->
   <div class="perform-header">
     <h2>My Performance</h2>
@@ -173,15 +216,87 @@
   </div>
 </section>
 <!-- IMPROVEMENT SUGGESTIONS -->
+<!-- IMPROVEMENT SUGGESTIONS -->
 <section class="improve-section">
   <h3 class="section-title">What You Can Improve</h3>
 
-  <ul class="improve-list">
-    <li>📌 Attempt at least 1 RTP daily</li>
-    <li>📌 Balance Chapters with MTP tests</li>
-    <li>📌 Avoid long gaps between practice days</li>
-  </ul>
+<ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px;">
+
+  <li style="
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:13px;
+    background: rgba(108,99,255,0.12);
+    padding:10px 12px;
+    border-radius:12px;
+  ">
+    <i class="fa-solid fa-thumbtack" style="
+      width:26px;
+      height:26px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1.5px solid rgba(108,99,255,0.8);
+      border-radius:8px;
+      color:#6c63ff;
+      font-size:13px;
+      flex-shrink:0;
+    "></i>
+    Attempt at least 1 RTP daily
+  </li>
+
+  <li style="
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:13px;
+    background: rgba(108,99,255,0.12);
+    padding:10px 12px;
+    border-radius:12px;
+  ">
+    <i class="fa-solid fa-thumbtack" style="
+      width:26px;
+      height:26px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1.5px solid rgba(108,99,255,0.8);
+      border-radius:8px;
+      color:#6c63ff;
+      font-size:13px;
+      flex-shrink:0;
+    "></i>
+    Balance Chapters with MTP tests
+  </li>
+
+  <li style="
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:13px;
+    background: rgba(108,99,255,0.12);
+    padding:10px 12px;
+    border-radius:12px;
+  ">
+    <i class="fa-solid fa-thumbtack" style="
+      width:26px;
+      height:26px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1.5px solid rgba(108,99,255,0.8);
+      border-radius:8px;
+      color:#6c63ff;
+      font-size:13px;
+      flex-shrink:0;
+    "></i>
+    Avoid long gaps between practice days
+  </li>
+
+</ul>
 </section>
+</div>
 </main>
 
   <script src="assets/js/common-layout.js"></script>
