@@ -7,6 +7,7 @@ import {
   setDoc,
   serverTimestamp,
   doc,
+  deleteDoc,
   onSnapshot,
   Timestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
@@ -23,7 +24,24 @@ let serverTimerInterval = null;
 let remainingSeconds = 0;
 let user = null;
 
-onSnapshot(TEMP_TEST_REF, (snap) => {
+import { onAuthStateChanged } from 
+  "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+let currentUser = null; // global
+
+onAuthStateChanged(auth, usr => {
+  if (!usr) {
+    console.log("⏳ Waiting for user login...");
+    return;
+  }
+
+  currentUser = usr; // ✅ store properly
+  console.log("✅ Auth ready:", currentUser.uid);
+
+  attachTestListener(); // attach snapshot AFTER auth
+});
+function attachTestListener() {
+  onSnapshot(TEMP_TEST_REF, (snap) => {
   if (!snap.exists()) {
     console.log("❌ No active test");
     return;
@@ -62,7 +80,21 @@ if (now >= end) {
   testStarted = true;
 
   console.log("🚀 Student test LIVE");
+// ---- MARK STUDENT AS JOINED ----
+if (!currentUser) return; // ✅ guard
 
+const joinRef = doc(
+  db,
+  "users",
+  currentUser.uid,
+  "testJoins",
+  window.currentTestId
+);
+
+setDoc(joinRef, {
+  testId: window.currentTestId,
+  joinedAt: serverTimestamp()
+}).catch(() => {});
   /* =========================
      HEADER / META
   ========================= */
@@ -124,6 +156,7 @@ document
   .forEach(el => el.classList.remove("hidden-by-skeleton"));
   startStudentQuiz(); // 👈 tumhara existing function
 });
+}
 
 
 /* =========================
@@ -410,22 +443,37 @@ function handleAnswer(btn, idx) {
 }
 
 async function saveUserMarks() {
-  const user = auth.currentUser;
+  const user = currentUser;  // ✅ use stored auth user
   if (!user) return;
-  if (!user) {
-  console.error("❌ user not ready, abort saving");
-  return;
-}
 
   const testId = window.currentTestId;
-  const submissionRef = doc(
-  db,
-  "users",
-  user.uid,
-  "testSubmissions",
-  `submission_${testId}`
-);
 
+  const submissionRef = doc(
+    db,
+    "users",
+    user.uid,
+    "testSubmissions",
+    `submission_${testId}`
+  );
+
+  // 🔥 CHECK if already submitted
+  const existing = await getDoc(submissionRef);
+
+  if (existing.exists()) {
+    console.log("⚠️ Already submitted — showing locked screen");
+
+    // 👉 SHOW ALREADY SUBMITTED UI
+    quizArea.classList.remove("hidden");
+    qText.textContent = "You already submitted this test.";
+    timerEl.textContent = "--";
+    optionsBox.innerHTML = "";
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+
+    return; // ⛔ stop further saving
+  }
+
+  // ---------- Continue normal saving ----------
   const answers = activeQuestions.map(q => {
     if (q.type === "mcq") {
       return {
@@ -438,49 +486,47 @@ async function saveUserMarks() {
       };
     }
 
-   // direct answer (NO evaluation)
-return {
-  type: "direct",
-  question: q.text,
-  answerText: q.userAnswer || "",
-  evaluated: false
-};
+    return {
+      type: "direct",
+      question: q.text,
+      answerText: q.userAnswer || "",
+      evaluated: false
+    };
   });
 
-const mcqQuestions = activeQuestions.filter(q => q.type === "mcq");
+  const mcqQuestions = activeQuestions.filter(q => q.type === "mcq");
+  const total = mcqQuestions.length;
+  const correct = mcqQuestions.filter(q => q.correct).length;
+  const wrong = mcqQuestions.filter(q => q.attempted && !q.correct).length;
 
-const total = mcqQuestions.length;
-const correct = mcqQuestions.filter(q => q.correct).length;
-const wrong = mcqQuestions.filter(q => q.attempted && !q.correct).length;
+  const userRef = doc(db, "users", user.uid);
+  const userSnap = await getDoc(userRef);
 
-const userRef = doc(db, "users", user.uid);
-const userSnap = await getDoc(userRef);
+  const username = userSnap.exists()
+    ? userSnap.data().username
+    : "Student";
 
-const username = userSnap.exists()
-  ? userSnap.data().username
-  : "Student";
-await setDoc(
-  submissionRef,
-  {
+  await setDoc(submissionRef, {
     uid: user.uid,
-    username,               // ✅ REAL username
-    testId,                 // ✅ unique test
+    username,
+    testId,
     subject: subjectText.textContent || "",
-
     marks: Number(marks.toFixed(2)),
     total,
     correct,
     wrong,
-
     answers,
     submittedAt: serverTimestamp()
-  },
-  { merge: true }
-);
+  });
 
-  console.log("✅ Submission merged into single document");
+  console.log("✅ Submission saved successfully");
 }
-
+// ---- REMOVE JOIN MARKER AFTER SUBMIT ----
+if (currentUser) {
+  await deleteDoc(
+    doc(db, "users", currentUser.uid, "testJoins", window.currentTestId)
+  ).catch(() => {});
+}
 function autoNext() {
   clearTimeout(autoNextTimeout);
 autoNextTimeout = null;

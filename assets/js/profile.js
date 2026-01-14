@@ -73,7 +73,6 @@ auth.onAuthStateChanged(async user => {
   }
 
   // 🔥 Force refresh user state from Firebase
-  await user.reload();
   user = auth.currentUser;
 
   // Now check verification
