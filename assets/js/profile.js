@@ -68,18 +68,18 @@ function saveProfileToLocal(uid, data) {
 
 auth.onAuthStateChanged(async user => {
   if (!user) {
-    window.location.href = "/index.html#login";
+    window.location.replace("/index.html#login");
     return;
   }
 
-  // 🔥 Force refresh user state from Firebase
-  user = auth.currentUser;
-
-  // Now check verification
+  // If email not verified → always go verify page
   if (!user.emailVerified) {
-    window.location.href = "/signup-verified.html";
+    window.location.replace("/signup-verified.html");
     return;
   }
+
+  // If profile already completed → never stay here
+  const snap = await getDoc(doc(db, "users", user.uid));
 
   // ✅ Only verified users reach here
   
@@ -95,17 +95,9 @@ auth.onAuthStateChanged(async user => {
   const uid = user.uid;
 
   /* 1️⃣ FAST LOAD FROM LOCALSTORAGE */
-  const cached = loadProfileFromLocal(uid);
-  if (cached) {
-    usernameEl.value = cached.username || "";
-    dobEl.value = cached.dob || "";
-    selectedGender = cached.gender || "";
-    if (selectedGender) genderText.textContent = selectedGender;
-  }
 
   /* 2️⃣ BACKGROUND SYNC FROM FIRESTORE */
   const ref = doc(db, "users", uid);
-  const snap = await getDoc(ref);
   if (!snap.exists()) return;
 
   const data = snap.data();
@@ -116,6 +108,16 @@ auth.onAuthStateChanged(async user => {
   selectedGender = data.gender || "";
   if (selectedGender) genderText.textContent = selectedGender;
 
+// 🔥 HARD SYNC publicLeaderboard with users profile (once per load)
+await setDoc(
+  doc(db, "publicLeaderboard", uid),
+  {
+    name: data.username || "User",
+    dob: data.dob || "",
+    gender: data.gender || ""
+  },
+  { merge: true }
+);
   // Sync localStorage
   saveProfileToLocal(uid, {
     username: data.username || "",
@@ -160,14 +162,21 @@ saveBtn.onclick = async () => {
 };
 
 // Update main user profile
+// Update main user profile
 await updateDoc(doc(db, "users", user.uid), payload);
 
+// ✅ ADD THIS BACK — THIS IS THE FIX
+await setDoc(
+  doc(db, "publicLeaderboard", user.uid),
+  {
+    name: payload.username,
+    dob: payload.dob,
+    gender: payload.gender
+  },
+  { merge: true }
+);
+
 // 🔥 ALSO update public leaderboard profile data
-await setDoc(doc(db, "publicLeaderboard", user.uid), {
-  name: payload.username,
-  dob: payload.dob,
-  gender: payload.gender
-}, { merge: true });
 
 /* 🔥 Sync localStorage instantly */
 saveProfileToLocal(user.uid, payload);
@@ -175,4 +184,7 @@ saveProfileToLocal(user.uid, payload);
   msg.textContent = "Profile saved successfully";
   msg.style.color = "#22c55e";
   setEditMode(false);
+  setTimeout(() => {
+  window.location.replace("/index.html");
+}, 500);
 };

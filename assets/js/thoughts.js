@@ -98,6 +98,7 @@ init() {
     .addEventListener("click", () => {
       document.getElementById("readerPage")
         .classList.remove("show");
+        document.body.classList.remove("lock-scroll");
     });
 
   console.log("Thoughts Page Initialized Successfully");
@@ -137,11 +138,13 @@ init() {
 // Open full-page editor
 this.addOpinionBtn.addEventListener("click", () => {
   document.getElementById("editorPage").classList.add("show");
+  document.body.classList.add("lock-scroll");
 });
 
 // Close full-page editor
 document.getElementById("editorClose").addEventListener("click", () => {
   document.getElementById("editorPage").classList.remove("show");
+  document.body.classList.remove("lock-scroll");
 });
 
 // Close editor
@@ -178,7 +181,7 @@ document.getElementById("editorClose").addEventListener("click", () => {
 openReader(id, data) {
   const page = document.getElementById("readerPage");
   page.classList.add("show");
-  
+  document.body.classList.add("lock-scroll");
   document.getElementById("readerName").textContent =
     data.name || "Anonymous";
   
@@ -187,7 +190,7 @@ openReader(id, data) {
   
   document.getElementById("readerMessage").innerHTML =
     this.formatMessage(data.message);
-  
+  parseEmojis(document.getElementById("readerMessage"));
   // Attach vote buttons (same Firebase logic)
   const upBtn = document.getElementById("readerUp");
   const downBtn = document.getElementById("readerDown");
@@ -202,7 +205,264 @@ openReader(id, data) {
   
   upBtn.onclick = () => this.handleVote(id, "up");
   downBtn.onclick = () => this.handleVote(id, "down");
+  // store current opinion id for comments
+this.currentOpinionId = id;
+this.initCommentsUI();
+this.loadCommentsRealtime();
 },
+/* =========================
+   COMMENTS SYSTEM
+========================= */
+
+initCommentsUI() {
+  const toggle = document.getElementById("commentsToggle");
+  const panel = document.getElementById("commentsPanel");
+
+  toggle.onclick = () => {
+    panel.classList.toggle("show");
+    toggle.textContent = panel.classList.contains("show")
+      ? "Close comments"
+      : "Comments ?";
+  };
+
+  // click outside to close
+  document.addEventListener("click", (e) => {
+    if (!panel.contains(e.target) && e.target !== toggle) {
+      panel.classList.remove("show");
+      toggle.textContent = "Comments ?";
+    }
+  });
+
+  // name edit
+  const nameDisplay = document.getElementById("commentNameDisplay");
+  const nameInput = document.getElementById("commentNameInput");
+
+function enablePrimaryNameEdit() {
+  const nameDisplay = document.getElementById("commentNameDisplay");
+  const nameInput = document.getElementById("commentNameInput");
+
+  nameDisplay.onclick = () => {
+    nameInput.value = nameDisplay.textContent.trim();
+    nameDisplay.style.display = "none";
+    nameInput.style.display = "block";
+    nameInput.focus();
+  };
+
+  nameInput.onblur = () => {
+    const val = nameInput.value.trim() || "Anonymous";
+    nameDisplay.textContent = val;
+    nameInput.style.display = "none";
+    nameDisplay.style.display = "block";
+  };
+}
+
+enablePrimaryNameEdit();
+
+  // autosize textarea
+  const textarea = document.getElementById("commentInput");
+  textarea.addEventListener("input", () => {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+  });
+
+  // send handlers
+  document.getElementById("commentSendBtn")
+    .onclick = () => this.sendComment(null);
+
+  textarea.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      this.sendComment(null);
+    }
+  });
+  // Prevent closing when clicking inside comments panel
+document.getElementById("commentsPanel")
+  .addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+},
+
+async sendComment(parentId, replyBox = null) {
+  const user = window.currentUser;
+  if (!user) {
+    requireLoginToast();
+    return;
+  }
+
+  let name, text;
+
+  // Primary comment
+  if (!parentId) {
+    name = document.getElementById("commentNameDisplay").textContent.trim();
+    text = document.getElementById("commentInput").value.trim();
+  } 
+  // Reply comment
+  else {
+    name = replyBox.querySelector(".reply-name-display").textContent.trim();
+    text = replyBox.querySelector(".reply-textarea").value.trim();
+  }
+
+  if (!text) return;
+
+  await addDoc(
+    collection(db, "opinions", this.currentOpinionId, "comments"),
+    {
+      uid: user.uid,
+      name,
+      text,
+      parent: parentId || null,
+      createdAt: serverTimestamp()
+    }
+  );
+
+  // Reset inputs
+  if (!parentId) {
+    const t = document.getElementById("commentInput");
+    t.value = "";
+    t.style.height = "auto";
+  } else {
+    const t = replyBox.querySelector(".reply-textarea");
+    t.value = "";
+    t.style.height = "auto";
+  }
+},
+
+loadCommentsRealtime() {
+  const list = document.getElementById("commentsList");
+
+  const q = query(
+    collection(db, "opinions", this.currentOpinionId, "comments"),
+    orderBy("createdAt", "asc")
+  );
+
+  onSnapshot(q, snap => {
+    list.innerHTML = "";
+    const all = [];
+
+    snap.forEach(docSnap => {
+      all.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    // Render only primary comments first
+    all.filter(c => !c.parent).forEach(c => {
+      const el = this.renderComment(c, all);
+      list.appendChild(el);
+      parseEmojis(el);
+    });
+  });
+},
+
+renderComment(comment, all) {
+
+  const div = document.createElement("div");
+  div.className = "comment-item";
+
+  div.innerHTML = `
+    <div class="comment-author">${this.escapeHTML(comment.name)}</div>
+    <div class="comment-text">${this.escapeHTML(comment.text)}</div>
+    <div class="comment-reply-btn">Reply</div>
+
+    <!-- replies container -->
+    <div class="comment-replies" id="replies-${comment.id}"></div>
+  `;
+
+  const replyBtn = div.querySelector(".comment-reply-btn");
+  const repliesBox = div.querySelector(".comment-replies");
+
+  // === Reply button click → inject inline reply box
+replyBtn.onclick = () => {
+
+  if (repliesBox.querySelector(".comment-write-box")) return;
+
+  const replyInputBox = document.createElement("div");
+  replyInputBox.className = "comment-write-box";
+
+  replyInputBox.innerHTML = `
+  <div class="reply-name-display">Anonymous</div>
+
+  <div class="comment-input-wrap">
+    <textarea class="reply-textarea" maxlength="200" placeholder="Write a reply..."></textarea>
+    <button class="reply-send-btn">
+      <i class="fa-solid fa-arrow-up"></i>
+    </button>
+  </div>
+`;
+
+  repliesBox.prepend(replyInputBox);
+
+  const textarea = replyInputBox.querySelector(".reply-textarea");
+  const sendBtn = replyInputBox.querySelector(".reply-send-btn");
+
+  let nameValue = "Anonymous";
+
+function attachReplyNameEdit(displayEl) {
+  displayEl.onclick = (e) => {
+    e.stopPropagation(); // 🔥 prevent panel collapse
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = displayEl.textContent.trim();
+    input.maxLength = 25;
+    input.className = "comment-name-edit";
+
+    displayEl.replaceWith(input);
+    input.focus();
+
+    input.onblur = () => {
+      const newName = input.value.trim() || "Anonymous";
+      const newDisplay = document.createElement("div");
+      newDisplay.className = "reply-name-display";
+      newDisplay.textContent = newName;
+
+      input.replaceWith(newDisplay);
+      attachReplyNameEdit(newDisplay);
+    };
+  };
+}
+
+  const firstDisplay = replyInputBox.querySelector(".reply-name-display");
+attachReplyNameEdit(firstDisplay);
+
+  // ✅ Auto expand textarea
+  textarea.oninput = () => {
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+  };
+
+  // ✅ Send reply
+  const sendReply = () => {
+    this.sendComment(comment.id, replyInputBox);
+  };
+
+  sendBtn.onclick = sendReply;
+
+  textarea.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendReply();
+    }
+  });
+};
+
+  // === Render existing replies ===
+  all.filter(r => r.parent === comment.id).forEach(r => {
+    const rDiv = document.createElement("div");
+    rDiv.className = "comment-item";
+
+    rDiv.innerHTML = `
+      <div class="comment-author">${this.escapeHTML(r.name)}</div>
+      <div class="comment-text">${this.escapeHTML(r.text)}</div>
+    `;
+
+    repliesBox.appendChild(rDiv);
+
+// ✅ Twemoji parse for replies
+parseEmojis(rDiv);
+  });
+
+  return div;
+},
+
   /* =========================
      MODAL HELPERS
   ========================= */
@@ -238,6 +498,7 @@ initEditorToolbar() {
   // When cursor moves → update active states
   editor.addEventListener("keyup", () => this.updateToolbarState());
   editor.addEventListener("mouseup", () => this.updateToolbarState());
+
 },
 updateToolbarState() {
   const buttons = this.editorToolbar.querySelectorAll("button");
@@ -430,6 +691,7 @@ setTimeout(() => {
     const data = docSnap.data();
     const card = this.createOpinionCard(docSnap.id, data);
     this.feed.appendChild(card);
+    parseEmojis(card);
   });
 
   // 🔥 Mark first load finished
@@ -494,8 +756,7 @@ const userVote = (uid && data.voters && data.voters[uid]) ? data.voters[uid] : n
 
     card.innerHTML = `
       <div class="opinion-top">
-        <div class="opinion-author">${this.escapeHTML(data.name || "Anonymous")}</div>
-<h3 class="opinion-subject">${this.escapeHTML(data.subject)}</h3>
+        <div class="opinion-author">${this.escapeHTML(data.name || "Anonymous")}</div><h3 class="opinion-subject">${this.escapeHTML(data.subject)}</h3>
 
         <div class="menu">
           <i class="fa-solid fa-ellipsis"></i>

@@ -326,7 +326,14 @@ url: "https://beforexam.vercel.app/signup-verified.html"
 });
 
 console.log("📩 Verification email sent");
-
+await fetch("/api/welcome", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: user.email,
+    username: username
+  })
+});
 // 🔒 Logout until verified
 await auth.signOut();
 
@@ -359,23 +366,15 @@ user.displayName ||
 user.email?.split("@")[0] ||
 "Student";
 
-if (!snap.exists() || !snap.data().username) {
-await setDoc(
-userRef,
-{
-uid: user.uid,
-username,
-email: user.email || "",
-provider: user.providerData[0]?.providerId || "password",
-createdAt: serverTimestamp(),
-xp: 0,
-bookmarks: [],
-settings: {
-theme: localStorage.getItem("quizta-theme") || "light"
-}
-},
-{ merge: true }
-);
+if (!snap.exists()) {
+  await setDoc(userRef, {
+    uid: user.uid,
+    username: user.displayName || "",
+    email: user.email,
+    createdAt: serverTimestamp(),
+    xp: 0,
+    profileCompleted: false
+  });
 }
 }
 
@@ -434,28 +433,36 @@ await ensureUserProfile(user);
 // ⏳ Load Firestore data separately    
 loadUserProfile(user.uid);
 // 🔥 FORCE PROFILE COMPLETION ONLY AFTER EMAIL VERIFIED
-const ref = doc(db, "users", user.uid);
-const snap = await getDoc(ref);
+// 🔐 Global auth gate
+async function handleUserRedirect(user) {
 
-if (snap.exists()) {
-  const data = snap.data();
-
-  // ❗ NEW CONDITION ADDED
+  // 1. Not verified → verification page
   if (!user.emailVerified) {
-    // User is logged in but email not verified
-    // Stay on signup-verified page
     if (!location.pathname.includes("signup-verified.html")) {
-      window.location.href = "/signup-verified.html";
+      window.location.replace("/signup-verified.html");
     }
     return;
   }
 
-  // ✅ Only now enforce profile completion
+  // 2. Fetch profile status
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+
+  // 3. Profile not completed → force profile page
   if (!data.profileCompleted) {
     if (!location.pathname.includes("profile.html")) {
-      window.location.href = "/profile.html";
+      window.location.replace("/profile.html");
     }
     return;
+  }
+
+  // 4. If profile completed but user is on profile page → send home
+  if (location.pathname.includes("profile.html")) {
+    window.location.replace("/index.html");
   }
 }
 } else {
