@@ -5,19 +5,22 @@ import { auth, db } from "./firebase.js";
 import {
   doc,
   getDoc,
+  getDocs,
+  deleteDoc,
   updateDoc,
   increment,
   addDoc,
   collection,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { initDailyRobot, incrementDailyProgress } from "./daily-robot.js";
 
 let currentUser = null;
 let currentXP = 0;
 const xpEl = document.getElementById("xpValue");
 
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
+import { syncPublicLeaderboard } from "./common.js";
 
 
 auth.onAuthStateChanged(user => {
@@ -29,7 +32,7 @@ auth.onAuthStateChanged(user => {
   }
 
   currentUser = user;
-
+initDailyRobot(user.uid);
   // 🔥 REAL-TIME XP (NO DELAY)
   onSnapshot(doc(db, "users", user.uid), snap => {
     if (!snap.exists()) return;
@@ -280,13 +283,21 @@ if (window.TIC_SETTINGS?.randomizeQuestions) {
 
 baseQuestions = questionsPool
   .slice(0, limit)
-  .map(q => ({
-    ...q,
-    attempted: false,
-    everAttempted: false,
-    correct: false
-  }));
-
+  .map(q => {
+    let optionOrder = q.options.map((_, i) => i);
+    
+    if (window.TIC_SETTINGS?.randomizeOptions) {
+      optionOrder.sort(() => Math.random() - 0.5);
+    }
+    
+    return {
+      ...q,
+      optionOrder, // 🔥 SAVE ORDER
+      attempted: false,
+      correct: false,
+      selectedIndex: null
+    };
+  });
 round = 1;
 updateRoundLabel();
 startRound(baseQuestions);
@@ -466,6 +477,86 @@ document.addEventListener("click", e => {
   attemptPopup.classList.remove("show");
 }
 });
+
+function renderTable(tableData) {
+  const wrap = document.createElement("div");
+  wrap.className = "question-table-wrap";
+
+  /* ===== CAPTION ===== */
+  if (tableData.caption) {
+    const cap = document.createElement("div");
+    cap.className = "question-table-caption";
+    cap.textContent = tableData.caption;
+    wrap.appendChild(cap);
+  }
+
+  const table = document.createElement("table");
+  table.className = "question-table";
+
+  /* ===== THEAD ===== */
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+
+  // 🔥 EMPTY CORNER CELL FOR ROW HEADINGS
+  const corner = document.createElement("th");
+  corner.textContent = "";
+  headRow.appendChild(corner);
+
+  tableData.headers.forEach(h => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    headRow.appendChild(th);
+  });
+
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  /* ===== TBODY ===== */
+  const tbody = document.createElement("tbody");
+
+  const rows = tableData.rows || [];
+  const limit = tableData.collapsible
+    ? tableData.maxVisibleRows || rows.length
+    : rows.length;
+
+  rows.forEach((rowObj, i) => {
+    const tr = document.createElement("tr");
+
+    if (tableData.collapsible && i >= limit) {
+      tr.classList.add("table-hidden-row");
+    }
+
+    // 🔥 ROW HEADING
+    const th = document.createElement("th");
+    th.scope = "row";
+    th.textContent = rowObj.rowHead || "";
+    tr.appendChild(th);
+
+    // DATA CELLS
+    rowObj.data.forEach(cell => {
+      const td = document.createElement("td");
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function renderDiagram(svgString) {
+  const wrap = document.createElement("div");
+  wrap.className = "diagram-wrap";
+  wrap.innerHTML = svgString;
+
+  const svg = wrap.querySelector("svg");
+  if (svg) svg.classList.add("eco-diagram");
+
+  return wrap;
+}
+
 function renderQuestion() {
   clearTimeout(autoNextTimeout);
 autoNextTimeout = null;
@@ -480,39 +571,80 @@ autoNextTimeout = null;
 
   optionsBox.innerHTML = "";
 
-  let options = q.options.map((opt, i) => ({
-  text: opt,
-  index: i
-}));
+// 🔥 REMOVE old table / diagram if exists
+document.querySelectorAll(".question-table-wrap, .diagram-wrap")
+  .forEach(el => el.remove());
 
-if (window.TIC_SETTINGS?.randomizeOptions) {
-  options.sort(() => Math.random() - 0.5);
+// 🔥 TABLE SUPPORT
+if (q.type === "table" && q.table) {
+  const tableEl = renderTable(q.table);
+  qText.after(tableEl);
 }
 
-options.forEach(({ text, index }, i) => {
+// 🔥 DIAGRAM SUPPORT
+if (q.type === "diagram" && q.diagram) {
+  const diagramEl = renderDiagram(q.diagram);
+  qText.after(diagramEl);
+}
+
+let options;
+
+// 🔥 ALWAYS BUILD q._optionOrder — RTP & MTP SAFE
+if (!q._optionOrder) {
+  
+  if (
+    window.TIC_SETTINGS?.rtpExamMode &&
+    selectedAttempt?.type === "MTP"
+  ) {
+    // MTP exam mode (120 min)
+    q._optionOrder = reorderMtpOptions(q.options).map(o => ({
+      text: o.text,
+      originalIndex: o.index
+    }));
+  } else {
+    // RTP / normal mode
+    q._optionOrder = q.optionOrder.map(idx => ({
+      text: q.options[idx],
+      originalIndex: idx
+    }));
+  }
+  
+  // 🔑 Compute correct index ONCE
+  q._correctIndexInUI = q._optionOrder.findIndex(
+    o => o.originalIndex === q.correctIndex
+  );
+}
+
+q._optionOrder.forEach((opt, uiIndex) => {
   const btn = document.createElement("button");
 
   btn.textContent = window.TIC_SETTINGS?.showABCD
-    ? String.fromCharCode(65 + i) + ". " + text
-    : text;
-
-  // 🔥 ATTACH CORRECTNESS TO BUTTON
-  btn.dataset.correct = index === q.correctIndex ? "true" : "false";
+    ? String.fromCharCode(65 + uiIndex) + ". " + opt.text
+    : opt.text;
 
   btn.disabled = q.attempted;
 
-  if (q.attempted && btn.dataset.correct === "true") {
-    btn.classList.add("correct");
+  // 🔥 RE-APPLY STATE (CRITICAL)
+  if (q.attempted) {
+    if (uiIndex === q._correctIndexInUI) {
+      btn.classList.add("correct");
+    }
+    if (
+      q._selectedIndex === uiIndex &&
+      uiIndex !== q._correctIndexInUI
+    ) {
+      btn.classList.add("wrong");
+    }
   }
 
-  btn.onclick = () => handleAnswer(btn);
+  btn.onclick = () => handleAnswer(btn, uiIndex);
   optionsBox.appendChild(btn);
 });
 
   prevBtn.disabled = qIndex === 0;
   nextBtn.disabled = !q.attempted;
 
-  if (
+if (
   window.TIC_SETTINGS?.questionTimer &&
   !q.attempted &&
   !(
@@ -521,66 +653,78 @@ options.forEach(({ text, index }, i) => {
   )
 ) {
   startTimer();
+} else {
+  clearTimer();
+  timeEl.textContent = "--";
 }
 }
 
 /* =========================
    ANSWER
 ========================= */
-async function handleAnswer(btn) {
+async function handleAnswer(btn, uiIndex) {
   if (answered) return;
   answered = true;
   clearTimer();
 
   const q = activeQuestions[qIndex];
   q.attempted = true;
+  q._selectedIndex = uiIndex;
 
   const all = optionsBox.children;
   [...all].forEach(b => (b.disabled = true));
 
-  const isCorrect = btn.dataset.correct === "true";
+  const isCorrect = uiIndex === q._correctIndexInUI;
 
   if (isCorrect) {
-    btn.classList.add("correct");
     q.correct = true;
+
+    // ✅ APPLY GREEN IMMEDIATELY
+    [...all].forEach((b, i) => {
+      if (i === q._correctIndexInUI) {
+        b.classList.add("correct");
+      }
+    });
 
     if (round === 1) {
       marks += 1;
     }
 
     if (currentUser) {
-      await updateDoc(doc(db, "users", currentUser.uid), {
+      updateDoc(doc(db, "users", currentUser.uid), {
         xp: increment(5)
-      });
+      }).catch(console.error);
 
-      await recordQuestionAttempt(5);
-      await updateBestXpIfNeeded();
+      recordQuestionAttempt(5).catch(console.error);
+      updateBestXpIfNeeded().catch(console.error);
+      showXpGain(5);
     }
 
+    nextBtn.disabled = false;
+
     if (window.TIC_SETTINGS?.autoSkip) {
-      autoNextTimeout = setTimeout(next, 1000);
-    } else {
-      nextBtn.disabled = false;
+      autoNextTimeout = setTimeout(next, 300);
     }
 
   } else {
+    // ❌ WRONG ANSWER
+    q.correct = false;
+
     btn.classList.add("wrong");
 
-    // 🔥 SHOW ACTUAL CORRECT OPTION
-    [...all].forEach(b => {
-      if (b.dataset.correct === "true") {
+    // ✅ SHOW CORRECT OPTION
+    [...all].forEach((b, i) => {
+      if (i === q._correctIndexInUI) {
         b.classList.add("correct");
       }
     });
-
-    q.correct = false;
 
     if (round === 1) {
       marks -= 0.25;
     }
 
     if (currentUser) {
-      await recordQuestionAttempt(0);
+      recordQuestionAttempt(0).catch(console.error);
     }
 
     nextBtn.disabled = false;
@@ -589,9 +733,6 @@ async function handleAnswer(btn) {
       autoNextTimeout = setTimeout(next, 3000);
     }
   }
-
-  // for review / retry
-  q.selectedOption = btn.textContent;
 }
 
 /* =========================
@@ -638,29 +779,79 @@ nextBtn.onclick = () => {
 /* =========================
    FINISH ROUND
 ========================= */
-function finishRound() {
+async function finishRound() {
   clearExamTimer();
-  if (round === 1 && !round1Completed) {
-    round1Completed = true;
+if (round === 1 && !round1Completed) {
+  round1Completed = true;
 
-    round1Snapshot = activeQuestions.map(q => ({ ...q }));
-    window.round1Snapshot = round1Snapshot;
+  // 📸 Freeze snapshot
+  round1Snapshot = activeQuestions.map(q => ({ ...q }));
+  window.round1Snapshot = round1Snapshot;
 
-    const correctCount = round1Snapshot.filter(q => q.correct).length;
+  const correctCount = round1Snapshot.filter(q => q.correct).length;
 
-    marksValue.textContent = marks.toFixed(2);
-    marksBox.classList.remove("hidden");
+  /* =================================
+     ✅ SAVE CORRECTIONS (NEW)
+  ================================= */
+  if (currentUser) {
+    const wrongOnly = round1Snapshot.filter(q => !q.correct);
 
-    // 🔥🔥 THIS IS THE MISSING WRITE 🔥🔥
-    recordAttemptSummary({
-      type: selectedAttempt.type,            // RTP or MTP
-      subject: currentSubject?.name || "",
-      attempt: selectedAttempt?.name || "",
-      correct: correctCount,
-      total: round1Snapshot.length,
-      xpEarned: correctCount * 5
-    });
+    try {
+      const colRef = collection(
+        db,
+        "users",
+        currentUser.uid,
+        "corrections"
+      );
+
+      // 🔥 clear old corrections
+      const old = await getDocs(colRef);
+      old.forEach(d => deleteDoc(d.ref));
+
+// 🚀 FAST PARALLEL SAVE
+const writes = wrongOnly.map(q =>
+  addDoc(colRef, {
+    source: selectedAttempt?.type || "RTP/MTP",
+    subject: currentSubject?.name || "",
+    attempt: selectedAttempt?.name || "",
+    text: q.text,
+    options: q.options,
+    correctAnswer: q.options[q.correctIndex],
+    createdAt: serverTimestamp()
+  })
+);
+
+await Promise.all(writes);
+
+      console.log("✅ RTP/MTP corrections saved:", wrongOnly.length);
+    } catch (e) {
+      console.error("❌ corrections save failed", e);
+    }
   }
+
+  /* =================================
+     ✅ SAVE DETAILED STATS (NEW)
+  ================================= */
+  /* =================================
+     ✅ UI
+  ================================= */
+  marksValue.textContent = marks.toFixed(2);
+  marksBox.classList.remove("hidden");
+
+  /* =================================
+     ✅ ATTEMPT SUMMARY (existing)
+  ================================= */
+await saveRtpMtpDetailedStats();
+
+await recordAttemptSummary({
+  type: selectedAttempt.type,
+  subject: currentSubject?.name || "",
+  attempt: selectedAttempt?.name || "",
+  correct: correctCount,
+  total: round1Snapshot.length,
+  xpEarned: correctCount * 5
+});
+}
 
   wrongQuestions = activeQuestions.filter(q => !q.correct);
 
@@ -707,24 +898,22 @@ function slideToggle(popup, open) {
 
 async function recordQuestionAttempt(xpGained) {
   if (!currentUser) return;
-
+incrementDailyProgress(currentUser.uid);
   const ref = doc(db, "users", currentUser.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
 
   const data = snap.data();
   const today = getLocalDate();
-  
+
   let updates = {
     totalAttempts: increment(1),
     dailyXp: increment(xpGained),
     dailyXpDate: today,
-
-    // 🔥 WEEKLY XP (THIS WAS MISSING)
     [`weeklyXp.${today}`]: increment(xpGained)
   };
 
-  // 🔥 STREAK (only first attempt of the day)
+  // 🔥 STREAK LOGIC
   if (data.lastActiveDate !== today) {
     let streak = data.streak || 0;
 
@@ -741,16 +930,21 @@ async function recordQuestionAttempt(xpGained) {
     updates.streak = streak;
     updates.lastActiveDate = today;
 
-    // reset day on first attempt
     updates.dailyXp = xpGained;
     updates[`weeklyXp.${today}`] = xpGained;
   }
-// 🧹 RESET weeklyXp on Monday
-const day = new Date().getDay(); // 0 = Sunday, 1 = Monday
-if (day === 1 && data.lastActiveDate !== today) {
-  updates.weeklyXp = {}; // fresh week
-}
+
+  // 🧹 RESET weekly XP on Monday
+  const day = new Date().getDay(); // 1 = Monday
+  if (day === 1 && data.lastActiveDate !== today) {
+    updates.weeklyXp = {};
+  }
+
+  // 🔥 UPDATE USER
   await updateDoc(ref, updates);
+
+  // 🔥🔥🔥 SYNC LEADERBOARD HERE 🔥🔥🔥
+  await syncPublicLeaderboard(currentUser.uid);
 }
 
 async function updateBestXpIfNeeded() {
@@ -794,5 +988,173 @@ async function recordAttemptSummary(data) {
     console.log("✅ RTP/MTP attempt saved");
   } catch (e) {
     console.error("❌ RTP/MTP attempt failed", e);
+  }
+}
+function showXpGain(amount) {
+  const xpBox = document.querySelector(".xp-box");
+  if (!xpBox) return;
+
+  const float = document.createElement("div");
+  float.className = "xp-float";
+  float.textContent = `+${amount}`;
+
+  xpBox.appendChild(float);
+
+  // remove after animation
+  setTimeout(() => {
+    float.remove();
+  }, 1200);
+}
+
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+window.addEventListener("DOMContentLoaded", () => {
+  const subjectId = getParam("subject");   // economics
+  const attemptId = getParam("attempt");   // eco_rtp_sep25
+
+  if (!subjectId || !attemptId) return;
+
+  // 1️⃣ Find subject
+  const subject = rtpMtpSubjects.find(s => s.id === subjectId);
+  if (!subject) return;
+
+  currentSubject = subject;
+  subjectText.textContent = subject.name;
+  chapterBtn.classList.remove("disabled");
+
+  // 2️⃣ Find attempt
+  const attempt = subject.attempts.find(a => a.id === attemptId);
+  if (!attempt) return;
+
+  selectedAttempt = attempt;
+  chapterText.textContent = attempt.name;
+
+  // 3️⃣ Enable controls
+  limitInput.disabled = false;
+  resetBtn.disabled = false;
+
+  console.log("✅ Auto-selected:", subject.name, attempt.name);
+});
+
+/* =========================
+   RTP / MTP OPTION RULE ENGINE
+   (CA FINAL – DATA SAFE)
+========================= */
+
+function normalizeOption(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getOptionType(text) {
+  const t = normalizeOption(text);
+
+  if (/both\s+[a-d]\s+and\s+[a-d]/.test(t)) return "BOTH";
+  if (/either\s+[a-d]\s+or\s+[a-d]/.test(t)) return "EITHER";
+  if (/neither\s+[a-d]\s+nor\s+[a-d]/.test(t)) return "NEITHER";
+
+  if (t.includes("all of the above") || t.includes("all the above") || t.includes("all of these"))
+    return "ALL";
+
+  if (t.includes("none of the above") || t.includes("none of these"))
+    return "NONE";
+
+  if (
+    t.includes("cant say") ||
+    t.includes("cannot say") ||
+    t.includes("cannot be determined")
+  ) return "CANT";
+
+  if (t.includes("any of the above")) return "ANY";
+
+  return "NORMAL";
+}
+
+function reorderMtpOptions(options) {
+  const mapped = options.map((text, i) => ({
+    text,
+    index: i,
+    type: getOptionType(text)
+  }));
+
+  const normal = mapped.filter(o => o.type === "NORMAL");
+  const both   = mapped.filter(o => o.type === "BOTH" || o.type === "EITHER");
+  const none   = mapped.filter(o =>
+    o.type === "NONE" || o.type === "NEITHER" || o.type === "CANT"
+  );
+  const allAny = mapped.filter(o => o.type === "ALL" || o.type === "ANY");
+
+  // 🔥 ALWAYS rebuild final order (RTP SAFE)
+  const final = [];
+
+  // 1️⃣ First two → normal only
+  final.push(...normal.slice(0, 2));
+
+  // 2️⃣ Third → BOTH / EITHER if exists
+  if (both.length) {
+    final.push(both[0]);
+  } else if (normal[2]) {
+    final.push(normal[2]);
+  }
+
+  // 3️⃣ Fourth → NONE / NEITHER / ALL / ANY
+  if (none.length) {
+    final.push(none[0]);
+  } else if (allAny.length) {
+    final.push(allAny[0]);
+  } else if (normal[3]) {
+    final.push(normal[3]);
+  }
+
+  // 4️⃣ Fallback (never break UI)
+  while (final.length < 4) {
+    const next = mapped.find(o => !final.includes(o));
+    if (!next) break;
+    final.push(next);
+  }
+
+  return final.slice(0, 4);
+}
+async function saveRtpMtpDetailedStats() {
+  if (!currentUser) return;
+
+  // optional minimum guard (same as chapter)
+  if (!round1Snapshot || round1Snapshot.length < 30) {
+    console.log("⚠️ RTP/MTP detailed stats skipped (<30 questions)");
+    return;
+  }
+
+  try {
+    const correct = round1Snapshot.filter(q => q.correct).length;
+    const total = round1Snapshot.length;
+
+    await addDoc(
+      collection(db, "users", currentUser.uid, "rtpMtpStats"),
+      {
+        userId: currentUser.uid,
+        date: new Date().toISOString().slice(0, 10),
+
+        type: selectedAttempt?.type || "", // RTP or MTP
+        subject: currentSubject?.name || "",
+        attempt: selectedAttempt?.name || "",
+
+        totalQuestions: total,
+        correct: correct,
+        wrong: total - correct,
+        marks: marks,
+        rounds: round,
+        accuracy: Math.round((correct / total) * 100),
+
+        createdAt: serverTimestamp()
+      }
+    );
+
+    console.log("✅ RTP/MTP detailed stats saved");
+  } catch (e) {
+    console.error("❌ RTP/MTP detailed stats failed", e);
   }
 }

@@ -5,11 +5,17 @@ import {
   updateDoc,
   increment,
   collection,
-  getDocs
+  setDoc,
+  getDocs,
+  query,
+  orderBy,
+  limit
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
+  
 import { generatePerformanceInsight } from "./insight-engine.js";
-
+/* ======================
+   USER STATS CACHE
+====================== */
 // 🔒 Safe global init
 window.allAttempts = [];
 /* =========================
@@ -20,6 +26,35 @@ const streakEl = document.getElementById("streakVal");
 const mostXpEl = document.getElementById("mostXpVal");
 const attemptsEl = document.getElementById("attemptVal");
 const visitsEl = document.getElementById("visitVal");
+const chapterTableBody =
+  document.querySelector("#chapterTable tbody");
+
+const mtpTableBody =
+  document.querySelector("#mtpTable tbody");
+
+const rtpTableBody =
+  document.querySelector("#rtpTable tbody");
+
+const summaryAttemptsEl =
+  document.getElementById("summaryAttempts");
+
+const summaryQuestionsEl =
+  document.getElementById("summaryQuestions");
+
+const bestChapterName =
+  document.getElementById("bestChapterName");
+
+const bestChapterMeta =
+  document.getElementById("bestChapterMeta");
+
+const weakChapterName =
+  document.getElementById("weakChapterName");
+
+const weakChapterMeta =
+  document.getElementById("weakChapterMeta");
+/* =========================
+   ⚡ FAST ATTEMPTS HYDRATION
+========================= */
 const practiceCards = document.querySelectorAll(".practice-card");
 
 const rtpCard = document.querySelector(".practice-card.rtp .practice-count");
@@ -92,10 +127,6 @@ function daysBetween(a, b) {
 
 const skeleton = document.getElementById("performanceSkeleton");
 const realContent = document.getElementById("performanceContent");
-
-// Show skeleton initially
-if (skeleton) skeleton.style.display = "block";
-if (realContent) realContent.style.display = "none";
 function formatK(num = 0) {
   if (num < 1000) return num;
   return (num / 1000)
@@ -170,8 +201,6 @@ function updateTrendUI(cardEl, attempts) {
   trendEl.className = `practice-trend ${trend.cls}`;
   trendEl.innerHTML = `<i class="fa-solid ${trend.icon}"></i> ${trend.text}`;
 }
-
-
 /* =========================
    XP WEEK CHART
 ========================= */
@@ -228,18 +257,6 @@ applyBtn?.addEventListener("click", async () => {
   const from = fromDateInput.value;
   const to = toDateInput.value;
 
-function addDays(dateStr, days) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function subtractDays(dateStr, days) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
 
 fromDateInput.addEventListener("change", syncDateLimits);
 toDateInput.addEventListener("change", syncDateLimits);
@@ -272,7 +289,9 @@ auth.onAuthStateChanged(async user => {
   if (!user) return;
 
   const ref = doc(db, "users", user.uid);
-
+const attemptsSnap = await getDocs(
+  collection(db, "users", user.uid, "attempts")
+);
   // 🔥 page visit count (fire & forget)
   updateDoc(ref, {
     pageVisits: increment(1)
@@ -286,10 +305,6 @@ auth.onAuthStateChanged(async user => {
 /* =========================
    PRACTICE OVERVIEW
 ========================= */
-
-const attemptsSnap = await getDocs(
-  collection(db, "users", user.uid, "attempts")
-);
 
 let rtpCount = 0;
 let mtpCount = 0;
@@ -331,12 +346,26 @@ const weekTotal = values.reduce((a, b) => a + b, 0);
 if (weekTotalEl) {
   weekTotalEl.textContent = weekTotal;
 }
+// 🔥 Sync weekly XP to public leaderboard
+
+// inside auth.onAuthStateChanged(user => { ... })
+
+await setDoc(
+  doc(db, "publicLeaderboard", user.uid),
+  {
+    name: data.name || user.displayName || "User",
+    xp: weekTotal,
+    gender: data.gender || "",
+    dob: data.dob || "",
+    pfp: data.pfp || ""
+  },
+  { merge: true }
+);
   /* ---------- STATS ---------- */
   streakEl.textContent = data.streak ?? 0;
   mostXpEl.textContent = formatK(data.bestXpDay ?? 0);
   attemptsEl.textContent = formatK(data.totalAttempts ?? 0);
   visitsEl.textContent = formatK(data.pageVisits ?? 0);
-
 
 Chart.defaults.font.family = "Poppins, system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
 Chart.defaults.font.size = 12;
@@ -450,7 +479,46 @@ options: {
 // ===== Hide skeleton, show real UI =====
 if (skeleton) skeleton.style.display = "none";
 if (realContent) realContent.style.display = "block";
+// 🔥 load detailed analysis
+// 🚀 background load practice overview
+setTimeout(() => {
+  loadPracticeOverviewData(user);
+}, 50);
 });
+
+async function loadPracticeOverviewData(user) {
+  try {
+    const attemptsSnap = await getDocs(
+      collection(db, "users", user.uid, "attempts")
+    );
+    
+    let rtpCount = 0;
+    let mtpCount = 0;
+    let chapterCount = 0;
+    
+    window.allAttempts = [];
+    
+    attemptsSnap.forEach(doc => {
+      const a = doc.data();
+      window.allAttempts.push(a);
+      
+      if (a.type === "RTP") rtpCount++;
+      else if (a.type === "MTP") mtpCount++;
+      else if (a.type === "CHAPTER") chapterCount++;
+    });
+    
+    if (rtpCard) rtpCard.textContent = `${rtpCount} Attempts`;
+    if (mtpCard) mtpCard.textContent = `${mtpCount} Attempts`;
+    if (chapterCard) chapterCard.textContent = `${chapterCount} Chapters`;
+    
+    updatePracticeTrends("all", fromDateInput.value, toDateInput.value);
+    updatePeriodInsight(rtpCount, mtpCount, chapterCount);
+    
+  } catch (err) {
+    console.error("Practice overview load failed:", err);
+  }
+}
+
 const subjectBtn = document.getElementById("practiceSubjectBtn");
 const subjectPopup = document.getElementById("practiceSubjectPopup");
 const subjectValue = document.getElementById("practiceSubjectValue");
@@ -619,7 +687,7 @@ function runInsightTyping(text) {
       cursor.remove();
       insightPara.classList.remove("typing");
     }
-  }, 50);
+  }, 70);
 }
 /* =========================
    BUILD & GENERATE INSIGHT
@@ -666,3 +734,471 @@ function updatePeriodInsight(rtp, mtp, chapter) {
   // ---- Typing Animation ----
   runInsightTyping(insightText);
 }
+/* =========================
+   DETAILED ANALYSIS OVERLAY (FIXED)
+========================= */
+
+const analysisOverlay = document.getElementById("analysisOverlay");
+const openAnalysis = document.getElementById("openDetailedAnalysis");
+const closeAnalysis = document.getElementById("closeAnalysis");
+
+let detailedLoaded = false;
+
+/* =========================
+   OPEN
+========================= */
+openAnalysis?.addEventListener("click", async () => {
+  analysisOverlay.classList.remove("hidden");
+
+  requestAnimationFrame(() => {
+    analysisOverlay.classList.add("active");
+  });
+
+  document.body.style.overflow = "hidden";
+
+  if (!detailedLoaded) {
+    const loader = document.getElementById("analysisLoader");
+    const content = document.getElementById("analysisContent");
+
+    loader?.classList.remove("hidden");
+    if (content) content.style.display = "none";
+
+    const user = auth.currentUser;
+    await loadDetailedAnalysis(user);
+
+    loader?.classList.add("hidden");
+    if (content) content.style.display = "block";
+
+    detailedLoaded = true;
+  }
+});
+
+/* =========================
+   CLOSE (BACK BUTTON)
+========================= */
+closeAnalysis?.addEventListener("click", () => {
+  analysisOverlay.classList.remove("active");
+
+  // wait for animation
+  setTimeout(() => {
+    analysisOverlay.classList.add("hidden");
+    document.body.style.overflow = "";
+  }, 220);
+});
+const tabs = document.querySelectorAll(".analysis-tab");
+const tables = document.querySelectorAll(".analysis-table");
+
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    tabs.forEach(t => t.classList.remove("active"));
+    tables.forEach(tb => tb.classList.remove("active"));
+
+    tab.classList.add("active");
+
+    const type = tab.dataset.type;
+    document.getElementById(type + "Table").classList.add("active");
+  });
+});
+
+// ===== PAGINATION STATE =====
+let chapterLastDoc = null;
+let rtpLastDoc = null;
+
+const PAGE_SIZE = 10;
+function formatDateUI(dateStr) {
+  if (!dateStr) return "-";
+
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+async function loadDetailedAnalysis(user) {
+  if (!user) return;
+
+  try {
+    // 🔥 fetch both collections in parallel
+    const [chapterSnap, rtpMtpSnap] = await Promise.all([
+      getDocs(collection(db, "users", user.uid, "chapterStats")),
+      getDocs(collection(db, "users", user.uid, "rtpMtpStats"))
+    ]);
+
+    // =============================
+    // RESET TABLES
+    // =============================
+    chapterTableBody.innerHTML = "";
+    mtpTableBody.innerHTML = "";
+    rtpTableBody.innerHTML = "";
+
+    let totalAttempts = 0;
+    let totalQuestions = 0;
+
+    const chapterAgg = {}; // for strongest/weak
+
+    // =============================
+    // 🔷 CHAPTER TABLE
+    // =============================
+    chapterSnap.forEach(docSnap => {
+      const d = docSnap.data();
+
+      totalAttempts++;
+      totalQuestions += d.totalQuestions || 0;
+
+      // ----- aggregate per chapter
+      const key = d.chapter || "Unknown";
+
+      if (!chapterAgg[key]) {
+        chapterAgg[key] = {
+          correct: 0,
+          total: 0,
+          attempts: 0
+        };
+      }
+
+      chapterAgg[key].correct += d.correct || 0;
+      chapterAgg[key].total += d.totalQuestions || 0;
+      chapterAgg[key].attempts++;
+
+      // ----- row build
+      const acc = d.accuracy ?? 0;
+
+      chapterTableBody.insertAdjacentHTML(
+        "beforeend",
+        `
+        <tr>
+          <td>${formatDateUI(d.date)}</td>
+          <td>${d.subject || "-"}</td>
+          <td>${d.chapter || "-"}</td>
+          <td>${d.totalQuestions || 0}</td>
+          <td class="col-marks">${d.marks ?? 0}</td>
+          <td class="col-wrongs">${d.wrong ?? 0}</td>
+          <td class="col-accuracy">${acc}%</td>
+        </tr>
+      `
+      );
+    });
+
+    // =============================
+    // 🔷 RTP / MTP TABLE
+    // =============================
+    rtpMtpSnap.forEach(docSnap => {
+      const d = docSnap.data();
+
+      totalAttempts++;
+      totalQuestions += d.totalQuestions || 0;
+
+      const acc = d.accuracy ?? 0;
+
+      const rowHTML = `
+        <tr>
+          <td>${formatDateUI(d.date)}</td>
+          <td>${d.subject || "-"}</td>
+          <td>${d.attempt || "-"}</td>
+          <td>${d.totalQuestions || 0}</td>
+          <td class="col-marks">${d.marks ?? 0}</td>
+          <td class="col-wrongs">${d.wrong ?? 0}</td>
+          <td class="col-accuracy">${acc}%</td>
+        </tr>
+      `;
+
+      if (d.type === "MTP") {
+        mtpTableBody.insertAdjacentHTML("beforeend", rowHTML);
+      } else {
+        rtpTableBody.insertAdjacentHTML("beforeend", rowHTML);
+      }
+    });
+
+    // =============================
+    // 🔷 SUMMARY
+    // =============================
+    summaryAttemptsEl.textContent = totalAttempts;
+    summaryQuestionsEl.textContent = totalQuestions;
+
+    // =============================
+    // 🔷 STRONGEST & WEAKEST CHAPTER
+    // =============================
+    let best = null;
+    let weak = null;
+
+    Object.entries(chapterAgg).forEach(([name, stat]) => {
+      const acc = stat.total === 0
+        ? 0
+        : Math.round((stat.correct / stat.total) * 100);
+
+      if (!best || acc > best.acc) {
+        best = { name, acc, attempts: stat.attempts };
+      }
+
+      if (!weak || acc < weak.acc) {
+        weak = { name, acc, attempts: stat.attempts };
+      }
+    });
+
+    if (best) {
+      bestChapterName.textContent = best.name;
+      bestChapterMeta.textContent =
+        `${best.acc}% accuracy • ${best.attempts} attempts`;
+    }
+
+    if (weak) {
+      weakChapterName.textContent = weak.name;
+      weakChapterMeta.textContent =
+        `${weak.acc}% accuracy • ${weak.attempts} attempts`;
+    }
+
+  } catch (err) {
+    console.error("Detailed analysis load failed:", err);
+  }
+}
+/* =========================
+   SMART PDF EXPORT (TAB BASED)
+========================= */
+document
+  .getElementById("downloadAnalysisPdf")
+  ?.addEventListener("click", async () => {
+    try {
+      const { jsPDF } = window.jspdf;
+
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4"
+      });
+
+      /* =============================
+         🔷 PREMIUM BRAND HEADER
+      ============================= */
+
+      // top gradient band (solid indigo)
+      doc.setFillColor(99, 102, 241);
+      doc.rect(0, 0, 595, 64, "F");
+
+      // brand
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text("PathCA", 40, 38);
+
+      // subtitle
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text("Detailed Performance Analysis", 40, 54);
+
+      // generated date (right side)
+      doc.setFontSize(9);
+      doc.text(
+        `Generated: ${new Date().toLocaleString()}`,
+        555,
+        38,
+        { align: "right" }
+      );
+
+      let startY = 90;
+
+      /* =============================
+         🔍 FIND ACTIVE TAB
+      ============================= */
+
+      const activeTab = document.querySelector(".analysis-tab.active");
+      if (!activeTab) {
+        alert("No tab selected");
+        return;
+      }
+
+      const type = activeTab.dataset.type;
+
+      const tableMap = {
+        chapter: "chapterTable",
+        mtp: "mtpTable",
+        rtp: "rtpTable"
+      };
+
+      const titleMap = {
+        chapter: "Chapter Analysis",
+        mtp: "MTP Analysis",
+        rtp: "RTP Analysis"
+      };
+
+      const tableId = tableMap[type];
+      const sectionTitle = titleMap[type];
+
+      /* =============================
+         📊 EXPORT ACTIVE TABLE ONLY
+      ============================= */
+
+      function exportTable(tableId, title) {
+        const table = document.querySelector(`#${tableId} table`);
+        if (!table) return;
+
+        const headers = [];
+        const rows = [];
+
+        table.querySelectorAll("thead th").forEach(th => {
+          headers.push(th.innerText.trim());
+        });
+
+        table.querySelectorAll("tbody tr").forEach(tr => {
+          const row = [];
+          tr.querySelectorAll("td").forEach(td => {
+            row.push(td.innerText.trim());
+          });
+          if (row.length) rows.push(row);
+        });
+
+        if (!rows.length) {
+          alert("No data available in this tab");
+          return;
+        }
+
+        // section title
+        doc.setTextColor(15, 23, 42);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text(title, 40, startY);
+        startY += 12;
+
+        doc.autoTable({
+          head: [headers],
+          body: rows,
+          startY: startY,
+          theme: "grid",
+
+          styles: {
+            fontSize: 8.5,
+            cellPadding: 6,
+            lineColor: [99, 102, 241],
+            lineWidth: 0.6,
+            textColor: [15, 23, 42],
+            font: "helvetica"
+          },
+
+          headStyles: {
+            fillColor: [99, 102, 241],
+            textColor: 255,
+            fontStyle: "bold"
+          },
+
+          alternateRowStyles: {
+            fillColor: [245, 247, 255]
+          }
+        });
+      }
+
+      exportTable(tableId, sectionTitle);
+
+      /* =============================
+         💾 SAVE
+      ============================= */
+
+      doc.save(`PathCA-${type}-analysis.pdf`);
+
+    } catch (err) {
+      console.error("PDF export failed:", err);
+      alert("PDF export failed");
+    }
+  });
+
+document.getElementById("downloadAnalysisXLS")?.addEventListener("click", () => {
+  const activeTab = document.querySelector(".analysis-tab.active")?.dataset.type;
+
+  let table;
+
+  if (activeTab === "chapter") {
+    table = document.querySelector("#chapterTable table");
+  } else if (activeTab === "mtp") {
+    table = document.querySelector("#mtpTable table");
+  } else {
+    table = document.querySelector("#rtpTable table");
+  }
+
+  if (!table) return;
+
+  /* =========================
+     EXTRACT DATA
+  ========================= */
+
+  const ws = XLSX.utils.table_to_sheet(table);
+
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+
+  /* =========================
+     🔥 AUTO COLUMN WIDTH
+  ========================= */
+
+  const colWidths = [];
+
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    let maxLen = 10;
+
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (cell && cell.v) {
+        maxLen = Math.max(maxLen, String(cell.v).length);
+      }
+    }
+
+    colWidths.push({ wch: Math.min(maxLen + 2, 40) });
+  }
+
+  ws["!cols"] = colWidths;
+
+  /* =========================
+     🎨 HEADER STYLING
+  ========================= */
+
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+    if (!ws[addr]) continue;
+
+    ws[addr].s = {
+      fill: { fgColor: { rgb: "6C63FF" } },
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      alignment: { horizontal: "center" }
+    };
+  }
+
+  /* =========================
+     🎨 ZEBRA ROWS
+  ========================= */
+
+  for (let R = 1; R <= range.e.r; ++R) {
+    if (R % 2 === 0) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[addr]) continue;
+
+        ws[addr].s = {
+          fill: { fgColor: { rgb: "F5F7FF" } }
+        };
+      }
+    }
+  }
+
+  /* =========================
+     🏷️ BRAND HEADER ROW
+  ========================= */
+
+  XLSX.utils.sheet_add_aoa(ws, [["PathCA Performance Report"]], {
+    origin: "A1"
+  });
+
+  ws["A1"].s = {
+    font: { bold: true, sz: 14 },
+    alignment: { horizontal: "left" }
+  };
+
+  /* shift table down */
+  XLSX.utils.sheet_add_aoa(ws, [[]], { origin: -1 });
+
+  /* =========================
+     SAVE
+  ========================= */
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Analysis");
+
+  XLSX.writeFile(wb, `PathCA-${activeTab}-analysis.xlsx`);
+});

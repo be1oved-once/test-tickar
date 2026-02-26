@@ -103,7 +103,7 @@ body.dark .xp-box {
   position: absolute;
   background: var(--bg-light);
   border: 1px solid var(--border-light);
-  border-radius: 14px;
+  border-radius: 5px;
   background-clip: border-box;
   box-shadow: 0 12px 30px rgba(0,0,0,0.15);
   padding: 6px;
@@ -165,6 +165,7 @@ body.dark .xp-box {
 .secondary-btn {
   background: #fff;
   color: #000;
+  cursor: pointer;
 }
 body.dark .secondary-btn {
   background: transparent;
@@ -269,22 +270,22 @@ body.dark .select-btn {
   color: var(--text-light);
   font-weight: 500;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 /* Next button */
 .nav-btn.primary {
-  background: var(--bg-light);
+  background: transparent;
   color: var(--text-light);
 }
-
 /* Center text */
 .nav-text {
-  flex: 1;                     /* 👈 takes middle space */
-  text-align: center;          /* 👈 centers text */
+  flex: 1;
+  text-align: center;
   font-size: 14px;
   font-weight: 600;
   color: var(--violet);
-  pointer-events: none;        /* 👈 prevents accidental clicks */
+  pointer-events: none;
 }
 
 /* Hover */
@@ -553,6 +554,9 @@ body.dark .marks-box {
   .quiz-area{ 
     justify-content: center;
   }
+  .nav-btn{
+    width: 160px !important;
+  }
 }
 #startQuiz {
   background: linear-gradient(135deg, #6c63ff, #8b5cf6);
@@ -663,26 +667,36 @@ body.dark .option-textarea:not(.readonly):focus {
    SELECT POPUP SCROLLBAR
    (Same as review-content)
 ========================= */
+.sub-select{
+  border-radius: 14px;
+}
+.select-popup {
+  /* prevent scrollbar painting outside rounded box */
+  overflow: hidden;          /* 🔥 clips scrollbar inside */
+  overflow-y: auto;
+
+  box-sizing: border-box;
+}
 
 /* Firefox */
 .select-popup {
   scrollbar-width: thin;
   scrollbar-color: var(--violet-soft) transparent;
+    /* Smooth base */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  
+  /* Elastic containment */
+  overscroll-behavior: none;
+  
+  /* Performance */
+  will-change: scroll-position;
+  contain: content;
 }
-.select-popup {
-  overflow-y: auto;
 
-  /* 🔒 Reserve space for scrollbar (KEY FIX) */
-  scrollbar-gutter: stable both-edges;
-
-  /* 🔧 Prevent visual overflow */
-  box-sizing: border-box;
-  padding-right: 4px; /* equals scrollbar width */
-}
 /* Chrome, Edge, Safari */
 .select-popup::-webkit-scrollbar {
   width: 4px;
-  border-radius: 60px;
 }
 
 .select-popup::-webkit-scrollbar-track {
@@ -695,10 +709,10 @@ body.dark .option-textarea:not(.readonly):focus {
     var(--violet-soft),
     rgba(108,99,255,0.35)
   );
-  border-radius: 14px;
+  border-radius: 10px;
 }
 
-/* Dark mode (optional fine-tune, same tone) */
+/* Dark mode */
 body.dark .select-popup {
   scrollbar-color: rgba(139,92,246,.7) transparent;
 }
@@ -709,4 +723,170 @@ body.dark .select-popup::-webkit-scrollbar-thumb {
     rgba(139,92,246,.9),
     rgba(139,92,246,.4)
   );
+}
+/* XP FLOAT ANIMATION */
+.xp-float {
+  position: absolute;
+  right: 0;
+  top: -8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #22c55e; /* green */
+  opacity: 0;
+  animation: xpPop 1.2s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes xpPop {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-18px);
+    opacity: 0;
+  }
+}
+
+/* Ensure xp-box can hold absolute child */
+.xp-box {
+  position: relative;
+}
+.seo-support-text {
+  position: absolute;
+  left: -9999px;
+  height: 1px;
+  overflow: hidden;
+}
+/* ===== DAILY ROBOT OVERLAY ===== */
+
+.daily-robot-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  z-index:9999;
+}
+
+.daily-robot-overlay.hidden{
+  display:none;
+}
+
+.robot-wrap{
+  position: relative;
+  width: 260px;
+  margin-right:-300px;
+  animation: robot-slide-in 0.6s ease forwards;
+}
+
+@keyframes robot-slide-in{
+  to { margin-right: 20px; }
+}
+
+.robot-figure svg{
+  width:160px;
+  display:block;
+  margin:auto;
+}
+
+/* hand wave */
+.robot-hand{
+  transform-origin: top center;
+  animation: wave-hand 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes wave-hand{
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-20deg); }
+}
+
+/* message bubble */
+.robot-message{
+  background: white;
+  color:#111;
+  padding:12px 16px;
+  border-radius:14px;
+  margin-top:10px;
+  font-size:14px;
+  font-weight:600;
+  text-align:center;
+  box-shadow:0 6px 20px rgba(0,0,0,0.2);
+}
+
+/* close button */
+.robot-close-btn{
+  position:absolute;
+  top:-10px;
+  right:-10px;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  border:2px solid #6366f1;
+  background:white;
+  color:#6366f1;
+  font-size:16px;
+  cursor:pointer;
+}
+
+/* celebration state */
+.robot-success .robot-message{
+  background:#22c55e;
+  color:white;
+}
+
+.robot-success .robot-hand{
+  animation: wave-hand 0.3s infinite alternate;
+}
+.robot-svg{
+  width:200px;
+  max-width: 100%;
+  display:block;
+  margin:auto;
+}
+
+/* ensure arms not clipped */
+.robot-figure{
+  overflow: visible;
+}
+
+/* smoother hand wave */
+.robot-hand{
+  transform-origin: top center;
+  animation: wave-hand 0.5s infinite ease-in-out alternate;
+}
+
+@keyframes wave-hand{
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-18deg); }
+}
+.robot-wrap{
+  animation:
+    robot-slide-in 0.6s ease forwards,
+    robot-float 3s ease-in-out infinite;
+}
+
+@keyframes robot-float{
+  0%,100%{ transform: translateY(0px); }
+  50%{ transform: translateY(-6px); }
+}
+/* ===============================
+   CLICKABLE CURSOR FIX (GLOBAL)
+=============================== */
+
+button,
+.select-btn,
+.select-popup button,
+.nav-btn,
+.primary-btn,
+.secondary-btn,
+.result-btn,
+.bookmark-btn,
+.flag-btn {
+  cursor: pointer !important;
 }

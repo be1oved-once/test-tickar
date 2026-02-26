@@ -1,33 +1,68 @@
+import { auth, db } from "./firebase.js";
 import {
   doc,
   updateDoc,
-  getDoc,
   increment,
-  serverTimestamp
+  getDoc
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-export async function addXp(user, xpEarned) {
-  const ref = doc(db, "users", user.uid);
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
 
+/* -----------------------------
+   CALLED WHEN QUESTION ATTEMPTED
+------------------------------ */
+export async function recordQuestionAttempt(xpEarned = 0) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
 
   const data = snap.data();
+  const todayStr = today();
 
-  const newTotalXp = (data.xp || 0) + xpEarned;
-  const newDailyXp = (data.dailyXp || 0) + xpEarned;
+  const updates = {
+    totalAttempts: increment(1),
+    dailyXp: increment(xpEarned)
+  };
 
-  // 🔥 MOST XP = MAX OF DAILY XP
-  const newBestXp = Math.max(data.bestXpDay || 0, newDailyXp);
+  // 🔥 Streak logic (only once per day)
+  if (data.lastActiveDate !== todayStr) {
+    let newStreak = 1;
 
-  // 🔥 ATTEMPTS DERIVED FROM XP
-  const totalAttempts = Math.floor(newTotalXp / 5);
+    if (data.lastActiveDate) {
+      const diff =
+        (new Date(todayStr) - new Date(data.lastActiveDate)) /
+        (1000 * 60 * 60 * 24);
+      newStreak = diff === 1 ? (data.streak || 0) + 1 : 1;
+    }
 
-  await updateDoc(ref, {
-    xp: newTotalXp,
-    dailyXp: newDailyXp,
-    bestXpDay: newBestXp,
-    totalAttempts,
-    lastActiveDate: new Date().toISOString()
-  });
+    updates.streak = newStreak;
+    updates.lastActiveDate = todayStr;
+  }
+
+  await updateDoc(ref, updates);
+}
+
+/* -----------------------------
+   CALLED AFTER XP UPDATE
+------------------------------ */
+export async function updateBestXpIfNeeded() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+
+  const { dailyXp = 0, bestXpDay = 0 } = snap.data();
+
+  if (dailyXp > bestXpDay) {
+    await updateDoc(ref, {
+      bestXpDay: dailyXp
+    });
+  }
 }

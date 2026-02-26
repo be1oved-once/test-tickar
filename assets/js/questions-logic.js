@@ -16,6 +16,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { syncPublicLeaderboard } from "./common.js";
+import { initDailyRobot, incrementDailyProgress } from "./daily-robot.js";
 
 let currentUser = null;
 let currentXP = 0;
@@ -30,6 +32,7 @@ auth.onAuthStateChanged(user => {
   }
 
   currentUser = user;
+initDailyRobot(user.uid);
 
   // 🔥 REAL-TIME XP SYNC
   onSnapshot(doc(db, "users", user.uid), snap => {
@@ -259,10 +262,12 @@ baseQuestions = qs.slice(0, limit).map(q => ({
    RESET
 ========================= */
 resetBtn.onclick = () => {
+  const table = document.querySelector(".question-table-wrap");
+  if (table) table.remove();
+
   disablePenaltySystem();
-  quizActive = false;          // 🔥 ADD THIS
+  quizActive = false;
   penaltyRunning = false;
-  // 🔥 Clear previous attempt data
 resetReviewState();
 round1Completed = false;
 
@@ -452,6 +457,162 @@ function updateRoundLabel() {
   }
 }
 
+function normalizeOption(text) {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function classifyOption(text) {
+  const t = normalizeOption(text);
+
+  if (/both\s+[a-d]\s+and\s+[a-d]/.test(t)) return "both";
+  if (/either\s+[a-d]\s+or\s+[a-d]/.test(t)) return "either";
+  if (/neither\s+[a-d]\s+nor\s+[a-d]/.test(t)) return "neither";
+
+  if (
+    t.includes("none of the above") ||
+    t.includes("none of these")
+  ) return "none";
+
+  if (
+    t.includes("all of the above") ||
+    t.includes("all the above") ||
+    t.includes("all of these") ||
+    t.includes("are all of the above")
+  ) return "all";
+
+  if (
+    t.includes("can't say") ||
+    t.includes("cannot say")
+  ) return "cant";
+
+  return "normal";
+}
+
+function renderTable(tableData) {
+  const wrap = document.createElement("div");
+  wrap.className = "question-table-wrap";
+
+  /* ===== CAPTION ===== */
+  if (tableData.caption) {
+    const cap = document.createElement("div");
+    cap.className = "question-table-caption";
+    cap.textContent = tableData.caption;
+    wrap.appendChild(cap);
+  }
+
+  const table = document.createElement("table");
+  table.className = "question-table";
+
+  /* ===== THEAD ===== */
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+
+  // 🔥 EMPTY CORNER CELL FOR ROW HEADINGS
+  const corner = document.createElement("th");
+  corner.textContent = "";
+  headRow.appendChild(corner);
+
+  tableData.headers.forEach(h => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    headRow.appendChild(th);
+  });
+
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  /* ===== TBODY ===== */
+  const tbody = document.createElement("tbody");
+
+  const rows = tableData.rows || [];
+  const limit = tableData.collapsible
+    ? tableData.maxVisibleRows || rows.length
+    : rows.length;
+
+  rows.forEach((rowObj, i) => {
+    const tr = document.createElement("tr");
+
+    if (tableData.collapsible && i >= limit) {
+      tr.classList.add("table-hidden-row");
+    }
+
+    // 🔥 ROW HEADING
+    const th = document.createElement("th");
+    th.scope = "row";
+    th.textContent = rowObj.rowHead || "";
+    tr.appendChild(th);
+
+    // DATA CELLS
+    rowObj.data.forEach(cell => {
+      const td = document.createElement("td");
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  return wrap;
+}
+
+function reorderOptionsByRules(options) {
+  if (options.length !== 4) return options;
+
+  const mapped = options.map((text, i) => ({
+    text,
+    originalIndex: i,
+    type: classifyOption(text)
+  }));
+
+  const normals = mapped.filter(o => o.type === "normal");
+  const both = mapped.filter(o => o.type === "both" || o.type === "either");
+  const none = mapped.filter(o =>
+    o.type === "none" || o.type === "neither" || o.type === "cant"
+  );
+  const all = mapped.filter(o => o.type === "all");
+
+  // Apply rules ONLY when 3 normals exist
+  if (normals.length === 3) {
+    if (both.length === 1 && none.length === 1) {
+      return [...normals, both[0], none[0]];
+    }
+
+    if (both.length === 1) {
+      return [...normals, both[0]];
+    }
+
+    if (none.length === 1) {
+      return [...normals, none[0]];
+    }
+
+    if (all.length === 1) {
+      return [...normals, all[0]];
+    }
+  }
+
+  return mapped;
+}
+
+/* =========================
+   DIAGRAM RENDERER
+========================= */
+function renderDiagram(svgString) {
+  const wrap = document.createElement("div");
+  wrap.className = "diagram-wrap";
+
+  wrap.innerHTML = svgString;
+
+  const svg = wrap.querySelector("svg");
+  if (svg) {
+    svg.classList.add("eco-diagram");
+  }
+
+  return wrap;
+}
+
 function renderQuestion() {
   clearTimeout(autoNextTimeout);
   autoNextTimeout = null;
@@ -498,33 +659,70 @@ qText.appendChild(star);
 
   optionsBox.innerHTML = "";
 
-  let options = [...q.options];
+// 🔥 REMOVE old table or diagram if exists
+const oldTable = document.querySelector(".question-table-wrap");
+if (oldTable) oldTable.remove();
 
-if (window.TIC_SETTINGS.randomizeOptions) {
-  options.sort(() => Math.random() - 0.5);
+const oldDiagram = document.querySelector(".diagram-wrap");
+if (oldDiagram) oldDiagram.remove();
+
+// 🔥 INSERT TABLE (below question text, above options)
+if (q.type === "table" && q.table) {
+  const tableEl = renderTable(q.table);
+  qText.after(tableEl);
+}
+// 🔥 INSERT DIAGRAM (below question text)
+if (q.type === "diagram" && q.diagramSvg) {
+  const diagramEl = renderDiagram(q.diagramSvg);
+  qText.after(diagramEl);
 }
 
-options.forEach((opt, i) => {
+if (!q._optionOrder) {
+  let ordered = reorderOptionsByRules(q.options);
+
+  // optional randomize only NORMAL options
+  if (window.TIC_SETTINGS.randomizeOptions === true) {
+    const normalPart = ordered.filter(o => o.type === "normal");
+    const specialPart = ordered.filter(o => o.type !== "normal");
+
+    normalPart.sort(() => Math.random() - 0.5);
+    ordered = [...normalPart, ...specialPart];
+  }
+
+  q._optionOrder = ordered;
+
+  q._correctIndexInUI = q._optionOrder.findIndex(
+    o => o.originalIndex === q.correctIndex
+  );
+}
+
+let options = q._optionOrder;
+
+q._optionOrder.forEach((optObj, uiIndex) => {
   const btn = document.createElement("button");
 
-  // 🔥 map displayed option back to original index
-  const originalIndex = q.options.indexOf(opt);
-  btn.dataset.correct = originalIndex === q.correctIndex;
-    const prefix = window.TIC_SETTINGS.showABCD === true
-  ? String.fromCharCode(65 + i) + ". "
-  : "";
+  const prefix =
+    window.TIC_SETTINGS.showABCD === true
+      ? String.fromCharCode(65 + uiIndex) + ". "
+      : "";
 
-btn.textContent = prefix + opt;
-    btn.disabled = q.attempted;
+  btn.textContent = prefix + optObj.text;
+  btn.dataset.index = uiIndex;
+  btn.disabled = q.attempted;
 
-    if (q.attempted && i === q.correctIndex) {
+  // ✅ re-highlight when coming back
+  if (q.attempted) {
+    if (uiIndex === q._correctIndexInUI) {
       btn.classList.add("correct");
     }
+    if (q._selectedIndex === uiIndex && q._selectedIndex !== q._correctIndexInUI) {
+      btn.classList.add("wrong");
+    }
+  }
 
-    btn.onclick = () => handleAnswer(btn, i);
-    optionsBox.appendChild(btn);
-  });
-
+  btn.onclick = () => handleAnswer(btn, uiIndex);
+  optionsBox.appendChild(btn);
+});
   prevBtn.disabled = qIndex === 0;
   nextBtn.disabled = !q.attempted;
 
@@ -539,76 +737,67 @@ btn.textContent = prefix + opt;
 /* =========================
    ANSWER
 ========================= */
-function handleAnswer(btn) {
+async function handleAnswer(btn, uiIndex) {
   if (answered) return;
   answered = true;
   clearTimer();
 
+  if (autoNextTimeout) {
+    clearTimeout(autoNextTimeout);
+    autoNextTimeout = null;
+  }
+
   const q = activeQuestions[qIndex];
   q.attempted = true;
+  q._selectedIndex = uiIndex;
 
-  const all = optionsBox.children;
-  [...all].forEach(b => (b.disabled = true));
+  [...optionsBox.children].forEach(b => (b.disabled = true));
 
-  // 🔥 CORRECTNESS BASED ON DATASET (RANDOMIZATION SAFE)
-  const isCorrect = btn.dataset.correct === "true";
+  const isCorrect = uiIndex === q._correctIndexInUI;
 
   if (isCorrect) {
     btn.classList.add("correct");
     q.correct = true;
-
-    if (round === 1) {
-      marks += 1;
-    }
+    if (round === 1) marks += 1;
 
     if (currentUser) {
-      // 🔥 Firebase XP
-      updateDoc(doc(db, "users", currentUser.uid), {
-        xp: increment(5)
-      });
-
-      // 🔥 Performance metrics
-      recordQuestionAttempt(5);
+      updateDoc(doc(db, "users", currentUser.uid), { xp: increment(5) });
+      showXpGain(5);
+      recordQuestionAttempt(5).catch(console.error);
+      syncPublicLeaderboard(currentUser.uid);
       updateBestXpIfNeeded();
     }
 
-    if (window.TIC_SETTINGS.autoSkip) {
-      autoNextTimeout = setTimeout(next, 1000);
-    } else {
+    // ✅ FAST ENABLE (300ms)
+    setTimeout(() => {
       nextBtn.disabled = false;
+    }, 300);
+
+    if (window.TIC_SETTINGS.autoSkip) {
+      autoNextTimeout = setTimeout(next, 300);
     }
 
   } else {
+    // ❌ WRONG → INSTANT
     btn.classList.add("wrong");
 
-    // ✅ SHOW CORRECT OPTION (DATASET BASED)
-    [...all].forEach(b => {
-      if (b.dataset.correct === "true") {
-        b.classList.add("correct");
-      }
+    [...optionsBox.children].forEach((b, i) => {
+      if (i === q._correctIndexInUI) b.classList.add("correct");
     });
 
     q.correct = false;
+    if (round === 1) marks -= 0.25;
 
-    if (round === 1) {
-      marks -= 0.25;
-    }
+    nextBtn.disabled = false; // ⚡ INSTANT
 
     if (currentUser) {
-      recordQuestionAttempt(0); // attempt counted, no XP
+      recordQuestionAttempt(0).catch(console.error);
     }
-
-    nextBtn.disabled = false;
 
     if (window.TIC_SETTINGS.autoSkip) {
-      autoNextTimeout = setTimeout(() => {
-        next();
-      }, 3000);
+      autoNextTimeout = setTimeout(next, 3000);
     }
   }
-
-  // 🔹 store selected option text (SAFE for review / retry)
-  q.selectedOption = btn.textContent;
 }
 
 /* =========================
@@ -652,28 +841,56 @@ nextBtn.onclick = () => {
   next();
 };
 
-/* =========================
-   FINISH ROUND
-========================= */
-function finishRound() {
+/* ==FINISH ROUND==== */
+async function finishRound() {
+  // 🔥 REMOVE TABLE
+  const table = document.querySelector(".question-table-wrap");
+  if (table) table.remove();
+
   disablePenaltySystem();
-  quizActive = false; // 🔥 DISABLE CHEAT CHECK
-penaltyRunning = false;
+  quizActive = false;
+  penaltyRunning = false;
 
 console.log("🔴 Quiz finished → Penalty system OFF");
 if (!round1Completed) {
   round1Completed = true;
 
-  // 📸 Freeze round-1 data
+  // 📸 Freeze round-1 snapshot
   round1Snapshot = activeQuestions.map(q => ({ ...q }));
   window.round1Snapshot = round1Snapshot;
+
+  // ✅ SAVE DETAILED STATS (ONLY HERE)
+  await saveChapterDetailedStats();
+
+  // ✅ SAVE CORRECTIONS (WRONG QUESTIONS)
+  if (currentUser) {
+    const wrongOnly = round1Snapshot.filter(q => !q.correct);
+
+    const colRef = collection(db, "users", currentUser.uid, "corrections");
+
+    // Clear old corrections
+    const old = await getDocs(colRef);
+    old.forEach(d => deleteDoc(d.ref));
+
+    // Save new ones
+    for (const q of wrongOnly) {
+      await addDoc(colRef, {
+        text: q.text,
+        options: q.options,
+        correctAnswer: q.options[q.correctIndex],
+        createdAt: Date.now()
+      });
+    }
+
+    console.log("✅ Corrections saved:", wrongOnly.length);
+  }
 
   // 🎯 UI
   marksValue.textContent = marks.toFixed(2);
   marksBox.classList.remove("hidden");
-  if (resultActions) resultActions.classList.remove("hidden");
+  resultActions?.classList.remove("hidden");
 
-  // 🔥🔥🔥 SAVE ATTEMPT SUMMARY (AUTO CREATES attempts/)
+  // 🔥 SAVE ATTEMPT SUMMARY
   recordAttemptSummary({
     type: "CHAPTER",
     subject: currentSubject?.name || "",
@@ -737,7 +954,7 @@ function slideToggle(popup, open) {
 
 async function recordQuestionAttempt(xpGained) {
   if (!currentUser) return;
-
+incrementDailyProgress(currentUser.uid);
   const ref = doc(db, "users", currentUser.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
@@ -795,12 +1012,15 @@ if (freshSnap.exists()) {
   let sum = 0;
   Object.values(weekly).forEach(v => sum += Number(v || 0));
 
-  await setDoc(doc(db, "publicLeaderboard", currentUser.uid), {
-    name: u.username || "User",
-    gender: u.gender || "",
-    dob: u.dob || "",
-    xp: sum
-  });
+const weekKey = getWeekKey();
+
+await setDoc(doc(db, "publicLeaderboard", currentUser.uid), {
+  name: u.username || "User",
+  gender: u.gender || "",
+  dob: u.dob || "",
+  xp: sum,
+  weekKey: weekKey
+});
 }
 }
 
@@ -872,33 +1092,6 @@ async function recordAttemptSummary(data) {
     console.error("❌ Attempt summary failed", e);
   }
 }
-/* =========================
-   KEYBOARD CONTROLS (DESKTOP)
-========================= */
-/* =========================
-   KEYBOARD SCROLL CONTROL
-========================= */
-
-// INDEX SKELETON LOADER
-const skeleton = document.getElementById("indexSkeleton");
-const content = document.getElementById("indexContent");
-
-// A/B perceived speed control
-const delay =
-  navigator.connection &&
-  navigator.connection.effectiveType.includes("4g")
-    ? 180   // fast net
-    : 900;  // slow net
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    skeleton.style.display = "none";
-    content.style.display = "block";
-  }, delay);
-});
-/* =========================
-   PENALTY / FOCUS SYSTEM
-========================= */
 
 const penaltyOverlay = document.getElementById("penaltyOverlay");
 const penaltyTimeEl = document.getElementById("penaltyTime");
@@ -1005,3 +1198,142 @@ window.addEventListener("beforeunload", e => {
     e.returnValue = "";
   }
 });
+function showXpGain(amount) {
+  const xpBox = document.querySelector(".xp-box");
+  if (!xpBox) return;
+
+  const float = document.createElement("div");
+  float.className = "xp-float";
+  float.textContent = `+${amount}`;
+
+  xpBox.appendChild(float);
+
+  // remove after animation
+  setTimeout(() => {
+    float.remove();
+  }, 1200);
+}
+/* =========================
+   KEYBOARD CONTROLS
+   N = Next
+   P = Previous
+========================= */
+
+document.addEventListener("keydown", (e) => {
+  // ❌ Ignore if typing inside input / textarea
+  const tag = document.activeElement.tagName.toLowerCase();
+  if (tag === "input" || tag === "textarea") return;
+
+  // ❌ Only work when quiz is active
+  if (!quizActive) return;
+
+  // Normalize key
+  const key = e.key.toLowerCase();
+
+  // NEXT  (N)
+  if (key === "n") {
+    // same behavior as clicking Next button
+    if (!nextBtn.disabled) {
+      nextBtn.click();
+    }
+  }
+
+  // PREVIOUS (P)
+  if (key === "p") {
+    if (!prevBtn.disabled) {
+      prevBtn.click();
+    }
+  }
+});
+/* =========================
+   SPACEBAR → PLAY / PAUSE VN
+========================= */
+
+document.addEventListener("keydown", (e) => {
+  // Ignore if typing
+  const tag = document.activeElement.tagName.toLowerCase();
+  if (tag === "input" || tag === "textarea") return;
+
+  // Space key
+  if (e.code !== "Space") return;
+
+  // Prevent page scroll
+  e.preventDefault();
+
+  // Find currently open VN card
+  const activeCard = document.querySelector(".vn-card.active");
+  if (!activeCard) return;
+
+  const audio = activeCard.audioInstance;
+  const playBtn = activeCard.querySelector(".vn-play-btn");
+  const playIcon = playBtn.querySelector("i");
+
+  if (!audio) return;
+
+  if (audio.paused) {
+    // Pause all others first
+    document.querySelectorAll(".vn-card").forEach(c => {
+      if (c !== activeCard && c.audioInstance) {
+        c.audioInstance.pause();
+        c.audioInstance.currentTime = 0;
+        const ic = c.querySelector(".vn-play-btn i");
+        if (ic) ic.className = "fa-solid fa-play";
+      }
+    });
+
+    audio.play();
+    playIcon.className = "fa-solid fa-pause";
+  } else {
+    audio.pause();
+    playIcon.className = "fa-solid fa-play";
+  }
+});
+
+
+// 🔥 Hook into your existing question attempt recorder
+const originalRecordQuestionAttempt = recordQuestionAttempt;
+
+async function saveChapterDetailedStats() {
+  if (!currentUser) return;
+
+  if (!round1Snapshot || round1Snapshot.length < 30) {
+    console.log("⚠️ Detailed stats skipped (<30 questions)");
+    return;
+  }
+
+  const correct = round1Snapshot.filter(q => q.correct).length;
+  const total = round1Snapshot.length;
+
+  await addDoc(
+    collection(db, "users", currentUser.uid, "chapterStats"),
+    {
+      userId: currentUser.uid, // 🔥 REQUIRED FOR RULES
+      date: new Date().toISOString().slice(0, 10),
+      subject: currentSubject?.name || "",
+      chapter: currentChapter?.name || "",
+      totalQuestions: total,
+      correct: correct,
+      wrong: total - correct,
+      marks: marks,
+      rounds: round,
+      accuracy: Math.round((correct / total) * 100),
+      createdAt: serverTimestamp()
+    }
+  );
+
+  console.log("✅ Chapter detailed stats saved");
+}
+function getWeekKey() {
+  const now = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+
+  const year = now.getFullYear();
+
+  // week number calculation
+  const firstJan = new Date(year, 0, 1);
+  const days = Math.floor((now - firstJan) / 86400000);
+  const week = Math.ceil((days + firstJan.getDay() + 1) / 7);
+
+  return `${year}-W${week}`;
+}

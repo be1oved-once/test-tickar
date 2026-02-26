@@ -24,12 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.innerText = "Sending...";
 
     const data = {
-      name: form[0].value.trim(),
-      email: form[1].value.trim(),
-      subject: form[2].value.trim(),
-      message: form[3].value.trim(),
-      token
-    };
+  name: document.getElementById("contactName").value.trim(),
+  email: document.getElementById("contactEmail").value.trim(),
+  subject: document.getElementById("contactSubject").value.trim(),
+  message: document.getElementById("contactMessage").value.trim(),
+  token
+};
 
     try {
       /* =======================
@@ -48,16 +48,18 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error(result.error || "Server error");
       }
 
-      showToast("Message sent successfully");
-      form.reset();
+form.reset();
+
+const successModal = document.getElementById("contactSuccess");
+successModal?.classList.add("active");
+
+if (window.turnstile) {
+  turnstile.reset();
+}
 
       if (window.turnstile) {
         turnstile.reset();
       }
-
-      setTimeout(() => {
-        window.location.replace("/confirmation.html");
-      }, 200);
 
     } catch (err) {
       console.error("Contact error:", err);
@@ -88,5 +90,19 @@ document.addEventListener("DOMContentLoaded", () => {
       t.classList.remove("show");
       setTimeout(() => t.remove(), 300);
     }, 2400);
+  }
+});
+
+// ===== SUCCESS MODAL CONTROL =====
+const contactSuccess = document.getElementById("contactSuccess");
+const contactSuccessOk = document.getElementById("successOk");
+
+contactSuccessOk?.addEventListener("click", () => {
+  contactSuccess.classList.remove("active");
+});
+
+contactSuccess?.addEventListener("click", (e) => {
+  if (e.target === contactSuccess) {
+    contactSuccess.classList.remove("active");
   }
 });

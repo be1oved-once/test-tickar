@@ -3,13 +3,26 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Weekly Leaderboard | Beforexam</title>
+<title>Weekly Leaderboard | PathCA</title>
+<meta name="description" content="Weekly leaderboard of PathCA. See top CA Foundation students earning XP through chapter practice, RTP/MTP tests and daily revision.">
+<meta name="keywords" content="PathCA leaderboard, CA Foundation XP leaderboard, top CA students, weekly rank list, PathCA rankings">
+<meta name="author" content="PathCA">
+<meta name="robots" content="noindex, follow">
+
+<link rel="canonical" href="https://pathca.vercel.app/leaderboard.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Weekly Leaderboard | PathCA">
+<meta property="og:description" content="See top-performing CA Foundation students on PathCA weekly XP leaderboard.">
+<meta property="og:url" content="https://pathca.vercel.app/leaderboard.html">
+<meta property="og:image" content="https://pathca.vercel.app/assets/favicon/android-chrome-512x512.png">
+<meta property="og:site_name" content="PathCA">
+
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Beforexam",
-    "url": "https://beforexam.vercel.app"
+    "name": "PathCA",
+    "url": "https://pathca.vercel.app"
   }
 </script>
 
@@ -18,9 +31,9 @@
   {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Beforexam",
-    "url": "https://beforexam.vercel.app",
-    "logo": "https://beforexam.vercel.app/assets/favicon/android-chrome-512x512.png"
+    "name": "PathCA",
+    "url": "https://pathca.vercel.app",
+    "logo": "https://pathca.vercel.app/assets/favicon/android-chrome-512x512.png"
   }
 </script>
 <!-- GOOGLE FONT -->
@@ -28,10 +41,20 @@
 
 <!-- FONT AWESOME -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- FAVICONS -->
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+<link rel="icon" href="assets/favicon/favicon.ico">
 
+<link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+
+<link rel="icon" type="image/png" sizes="192x192" href="assets/favicon/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="assets/favicon/android-chrome-512x512.png">
+<link rel="manifest" href="assets/favicon/site.webmanifest">
 <!-- COMMON CSS -->
 <link rel="stylesheet" href="assets/css/common.css">
-
+  <link rel="stylesheet" href="assets/css/howto-overlay.css">
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
 /* =========================================================
    GLOBAL
@@ -446,6 +469,19 @@ body.dark .lb-skeleton-xp {
 body.dark .lb-reset-text {
   color: #94a3b8;
 }
+.lb-profile-pfp-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.lb-profile-pfp {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(108,99,255,0.6);
+  object-fit: cover;
+}
 </style>
 </head>
 <body>
@@ -494,9 +530,7 @@ body.dark .lb-reset-text {
 import { db } from "./assets/js/firebase.js";
 import {
   collection,
-  onSnapshot,
-  doc,
-  getDoc
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const list = document.getElementById("leaderboardList");
@@ -559,31 +593,43 @@ function startResetTimer() {
   update();
   setInterval(update, 60000); // update every minute
 }
-
-
 function listenLeaderboard() {
+
+  // Show skeleton first
   skeleton.style.display = "block";
   list.style.display = "none";
 
   const ref = collection(db, "publicLeaderboard");
 
-  onSnapshot(ref, async (snap) => {
+  // 🔥 Realtime Firestore listener
+  onSnapshot(ref, (snap) => {
     const users = [];
 
-for (const docSnap of snap.docs) {
-  const lbData = docSnap.data();
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+const xp = data.xp || 0;
 
-  users.push({
-    uid: docSnap.id,
-    name: lbData.name || "User",
-    gender: lbData.gender || "",
-    dob: lbData.dob || "",
-    xp: lbData.xp || 0
-  });
-}
+// ❌ Skip users with 0 XP
+if (xp <= 0) return;
 
+const currentWeek = getWeekKey();
+
+// ❌ Ignore old week data
+if (data.weekKey !== currentWeek) return;
+
+users.push({
+  name: data.name || "User",
+  gender: data.gender || "",
+  dob: data.dob || "",
+  xp: xp,
+  pfp: data.pfp || ""
+});
+    });
+
+    // Sort by XP high → low
     users.sort((a, b) => b.xp - a.xp);
 
+    // Hide skeleton after first data arrives
     skeleton.style.display = "none";
     list.style.display = "flex";
 
@@ -628,6 +674,12 @@ function renderLeaderboard(users) {
 
       <div class="lb-expand">
         <div class="lb-profile-card">
+
+  ${u.pfp ? `
+    <div class="lb-profile-pfp-wrap">
+      <img src="${u.pfp}" class="lb-profile-pfp">
+    </div>
+  ` : ""}
           <div class="lb-profile-row">
             <span class="lb-profile-label">Name</span>
             <span class="lb-profile-value">${u.name}</span>
@@ -671,9 +723,34 @@ function enableExpand() {
 }
 // 🚀 Start reset timer
 startResetTimer();
+// 🔄 auto refresh when week changes
+let lastWeekKey = getWeekKey();
 
+setInterval(() => {
+  const nowWeek = getWeekKey();
+  if (nowWeek !== lastWeekKey) {
+    lastWeekKey = nowWeek;
+    listenLeaderboard(); // reload fresh week
+  }
+}, 60000);
 // 🚀 Start realtime listener
 listenLeaderboard();
+function getWeekKey() {
+  const now = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  
+  const year = now.getFullYear();
+  
+  // week number calculation
+  const firstJan = new Date(year, 0, 1);
+  const days = Math.floor((now - firstJan) / 86400000);
+  const week = Math.ceil((days + firstJan.getDay() + 1) / 7);
+  
+  return `${year}-W${week}`;
+}
+</script>
+
 </script>
 
 </body>

@@ -231,12 +231,8 @@ body.dark .menu-popup {
   gap: 5px;
 }
 
-.vote-btn:hover {
-  opacity: 1;
-}
-
 .vote-btn.active i {
-  color: #6366f1;
+  color: #6F5BDB;
 }
 
 /* =========================
@@ -484,8 +480,10 @@ body.dark #reportReason {
 
 .reader-message {
   margin-top: 14px;
-  line-height: 1.7;
+  line-height: 1.4;
   white-space: pre-wrap; 
+  font-size: 13px;
+  
 }
 
 /* footer votes */
@@ -576,10 +574,6 @@ body.dark .opinion-card::before {
   transition: all 0.15s ease;
 }
 
-.opinion-votes .vote-btn:hover {
-  background: rgba(99,102,241,0.12);
-}
-
 .vote-btn.active {
   background: rgba(99,102,241,0.18);
   border-color: #6c63ff;
@@ -653,10 +647,6 @@ body.dark .reader-close i {
 .reader-footer .vote-btn {
   border: 1px solid rgba(99,102,241,0.25);
   background: rgba(99,102,241,0.05);
-}
-
-.reader-footer .vote-btn:hover {
-  background: rgba(99,102,241,0.15);
 }
 
 body.dark .reader-footer .vote-btn {
@@ -894,7 +884,7 @@ body.dark .menu-popup button:not(:last-child) {
   box-shadow: 0 0 0 3px rgba(108,99,255,0.18);
   background: #ffffff;
 }
-
+ 
 /* Dark mode focus */
 body.dark #opName:focus,
 body.dark #opSubject:focus,
@@ -991,7 +981,7 @@ body.dark .vote-btn {
 }
 
 body.dark .vote-btn.active {
-  background: #8b5cf6;
+  background: #642DE0;
   border-color: #8b5cf6;
   color: #ffffff;
 }
@@ -1062,7 +1052,7 @@ body.dark .editor-toolbar button.active {
   gap: 12px;
 
   transition: transform 0.35s cubic-bezier(.25,.8,.25,1);
-  z-index: 2000;
+  z-index: 11000;
 }
 
 .confirm-toast.show {
@@ -1134,7 +1124,6 @@ body.dark .editor-toolbar button.active {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
-  z-index: 1999;
 }
 
 .toast-backdrop.show {
@@ -1307,12 +1296,12 @@ body.dark .skeleton-pill {
 .comment-name-edit {
   font-size: 13px;
   font-weight: 600;
-  padding: 5px 8px;
   border-radius: 7px;
+  padding-left: 5px;
   border: 1px solid #d6d6e0;
   outline: none;
-  width: fit-content;
-  max-width: 160px;
+  width: 100px;
+  max-width: 120px;
   background: #fff;
 }
 
@@ -1387,7 +1376,7 @@ body.dark .skeleton-pill {
 }
 
 .comment-text {
-  font-size: 14px;
+  font-size: 12px;
   margin-top: 3px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1463,4 +1452,7 @@ body.lock-scroll {
 }
 .editor-page {
   overflow-y: auto;
+}
+.seo-text{
+  display: none;
 }

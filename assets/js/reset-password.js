@@ -41,11 +41,11 @@ document.getElementById("sendResetBtn")?.addEventListener("click", async () => {
 
   try {
 await sendPasswordResetEmail(auth, email, {
-  url: "https://beforexam.vercel.app/reset-password.html",
+  url: "https://pathca.vercel.app/reset-password.html",
   handleCodeInApp: true
 });
 
-console.log("✅ Reset email sent (localhost)");
+console.log("✅ Reset email sent");
 
     console.log("✅ Reset email accepted by Firebase");
     resetMsg.textContent =
@@ -54,7 +54,7 @@ console.log("✅ Reset email sent (localhost)");
   } catch (error) {
     console.error("❌ Reset email failed:", error.code, error.message);
     resetMsg.textContent =
-      error.message.replace("Firebase:", "") || "Failed to send reset link";
+      error.message.replace(":", "") || "Failed to send reset link";
   }
 });
 
@@ -97,6 +97,6 @@ document.getElementById("confirmResetBtn")?.addEventListener("click", async () =
     console.error("Message:", error.message);
 
     confirmMsg.textContent =
-      error.message.replace("Firebase:", "") || "Reset failed";
+      error.message.replace(":", "") || "Reset failed";
   }
 });

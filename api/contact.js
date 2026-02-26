@@ -8,39 +8,46 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email, subject, message, token } = req.body;
+    const { name, email, subject, message, token, type } = req.body;
 
     // Basic validation
-    if (!name || !email || !message) {
-      return res.status(400).json({ error: "Missing fields" });
-    }
+    if (!name || !message) {
+  return res.status(400).json({ error: "Missing fields" });
+}
 
-    if (!token) {
-      return res.status(400).json({ error: "Captcha missing" });
+// If this is normal contact form → require email + captcha
+const isVoiceFeedback = subject === "Voice Note Feedback";
+
+// Normal contact form validation
+/* =========================
+   VERIFY CLOUDFLARE TURNSTILE
+   (ONLY for normal contact form)
+========================= */
+if (!isVoiceFeedback) {
+  const verifyRes = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        secret: process.env.CLOUDFLARE_TURNSTILE_SECRET,
+        response: token
+      })
     }
+  );
+
+  const verifyData = await verifyRes.json();
+
+  if (!verifyData.success) {
+    return res.status(403).json({ error: "Captcha failed" });
+  }
+}
 
     /* =========================
        VERIFY CLOUDFLARE TURNSTILE
-    ========================= */
-    const verifyRes = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams({
-          secret: process.env.CLOUDFLARE_TURNSTILE_SECRET,
-          response: token
-        })
-      }
-    );
-
-    const verifyData = await verifyRes.json();
-
-    if (!verifyData.success) {
-      return res.status(403).json({ error: "Captcha failed" });
-    }
+    ========================= *
 
     /* =========================
        SEND EMAIL (RESEND)
@@ -57,53 +64,122 @@ export default async function handler(req, res) {
         to: ["contact.globalratings@gmail.com"],
         reply_to: email,
         subject: subject || "New Contact Message",
-        html: `
+html: `
 <div style="
-  max-width:520px;
+  max-width:560px;
   margin:20px auto;
-  background:#0f172a;
-  color:#e5e7eb;
-  border-radius:14px;
-  padding:22px;
-  font-family:Arial,Helvetica,sans-serif;
+  background:#ffffff;
+  color:#111827;
+  border-radius:16px;
+  padding:28px 26px 26px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  border:1px solid #e5e7eb;
+  box-shadow:0 10px 28px rgba(0,0,0,0.06);
 ">
 
-  <div style="font-size:22px;font-weight:600;letter-spacing:0.5px;">
-    <span style="color:#ffffff;">TIC</span>
-    <span style="color:#6366f1;font-weight:700;">.</span>
-    <span style="font-size:13px;color:#c7d2fe;">Kar</span>
+  <!-- LOGO (UNCHANGED GOOD) -->
+  <div style="text-align:center;margin-bottom:18px;">
+    <img src="https://pathca.vercel.app/assets/favicon/logo.png"
+         alt="PathCA"
+         width="110"
+         style="display:inline-block;border-radius:6px;">
   </div>
 
-  <hr style="border:none;border-top:1px solid #1e293b;margin:14px 0;">
-
-  <h3 style="margin:10px 0 16px;font-size:16px;color:#f8fafc;">
-    New Contact Message
+  <h3 style="
+    margin:0 0 20px;
+    font-size:19px;
+    color:#111827;
+    text-align:center;
+    letter-spacing:0.2px;
+    font-weight:700;
+  ">
+    📬 New Contact Message
   </h3>
 
-  <p style="margin:6px 0;"><b>Name:</b> ${name}</p>
-  <p style="margin:6px 0;">
-    <b>Email:</b>
-    <a href="mailto:${email}" style="color:#93c5fd;text-decoration:none;">
-      ${email}
-    </a>
-  </p>
-  <p style="margin:6px 0;"><b>Subject:</b> ${subject || "—"}</p>
-
+  <!-- INFO GRID -->
   <div style="
-    margin-top:14px;
-    padding:12px;
-    background:#020617;
-    border-radius:10px;
-    font-size:14px;
-    line-height:1.5;
+    background:#f8fafc;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    padding:16px;
+    margin-bottom:18px;
   ">
-    ${message.replace(/\n/g, "<br>")}
+
+    <div style="margin-bottom:10px;font-size:14px;">
+      <span style="color:#6b7280;font-weight:600;">Name</span><br>
+      <span style="color:#111827;font-weight:600;">${name}</span>
+    </div>
+
+    <div style="margin-bottom:10px;font-size:14px;">
+      <span style="color:#6b7280;font-weight:600;">Email</span><br>
+      <a href="mailto:${email}" style="
+        color:#2563eb;
+        text-decoration:none;
+        font-weight:600;
+      ">${email}</a>
+    </div>
+
+    <div style="font-size:14px;">
+      <span style="color:#6b7280;font-weight:600;">Subject</span><br>
+      <span style="color:#111827;font-weight:600;">
+        ${subject || "—"}
+      </span>
+    </div>
+<div style="
+  border:1px solid #e5e7eb;
+  border-radius:10px;
+  padding:12px;
+  margin-bottom:10px;
+  background:#f9fafb;
+  font-size:14px;
+">
+  <b>Contact Type:</b> ${type || "—"}
+</div>
   </div>
 
-  <hr style="border:none;border-top:1px solid #1e293b;margin:16px 0;">
+  <!-- ✨ PREMIUM MESSAGE BOX ✨ -->
+  <div style="
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    padding:18px 18px;
+    background:linear-gradient(180deg,#ffffff,#fafbff);
+    font-size:15px;
+    line-height:1.7;
+    color:#1f2937;
+    white-space:pre-wrap;
+    word-break:break-word;
+    position:relative;
+  ">
 
-  <div style="font-size:12px;color:#94a3b8;text-align:center;">
-    Sent via <b>TIC.Kar</b> Contact Form
+    <!-- message label -->
+    <div style="
+      font-size:11px;
+      letter-spacing:0.6px;
+      font-weight:700;
+      color:#6366f1;
+      margin-bottom:8px;
+      text-transform:uppercase;
+    ">
+      Message
+    </div>
+
+    <div>
+      ${message.replace(/\n/g, "<br>")}
+    </div>
+
+  </div>
+
+  <!-- FOOTER (YOUR GOOD PART KEPT) -->
+  <div style="
+    text-align:center;
+    font-size:12px;
+    color:#6b7280;
+    border-top:1px solid #e5e7eb;
+    padding-top:16px;
+    margin-top:22px;
+    letter-spacing:0.2px;
+  ">
+    Message received via <b style="color:#4f46e5;">PathCA</b> Contact Form
   </div>
 
 </div>
